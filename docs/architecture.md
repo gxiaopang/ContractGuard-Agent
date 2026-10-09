@@ -91,6 +91,59 @@ each proposed fact is scored on whether a later answer would need it before
 it is stored. Any failure keeps today's behaviour, so a slow judge never costs
 a memory. The turn card says how many it kept.
 
+### ContractGuard review memory
+
+`WAKU_CONTRACT_REVIEW=1` adds contract instructions to session context while
+preserving the user's `SOUL.md`. `memory/contractguard.py` seeds ten clause facts
+idempotently through the existing local store. Ten community procedures load
+on clause-specific messages; the facade omits them when review mode is off.
+
+The review gate selects semantic guidance and episodic history independently.
+It validates its JSON response strictly and skips memory on failure. Domain
+retrieval excludes ordinary facts and chat episodes. Exact clause history
+decodes review summaries and compares timezone-aware timestamps across all
+episodes rather than relying on an FTS top-k result.
+
+`Memory.complete_review()` validates evidence against source offsets and stores
+a versioned summary in the existing `episodes` table. It then runs optional
+pattern consolidation immediately. The domain writer accepts only short,
+grounded, novel lexical cues; benchmark predictions cannot create semantic
+facts. Review mode skips generic chat-log consolidation because a chat reply
+does not establish a completed review. These domain paths initially require
+SQLite stores. [ContractGuard foundation](contractguard/foundation.md) describes
+the record contract and remaining limitations.
+
+The opt-in `review_contract` tool orchestrates ordinary parser, extractor, risk,
+comparison and report functions inside the existing registry and loop. Each
+clause gets separate gated context through `Memory.review_context()` and its
+canonical procedure. History excludes the current document before top-k.
+Python aligns exact model-proposed quotations to source offsets and validates
+stage schemas before rendering a deterministic report. Structured extraction
+records remain available to evaluators independently of report formatting.
+Completed reviews call `Memory.complete_review()`; partial reviews make no
+review-memory writes. Local ready journals support persistence retries and
+completed artifacts support idempotent repeat calls.
+[ContractGuard toolchain](contractguard/toolchain.md) describes the call path,
+artifact schema and limits.
+
+The evaluation-only `evals/contractguard/` package projects local CUAD documents
+into source id and text before calling the existing extraction and risk stages.
+Annotations remain on the scoring side. `scripts/run_eval.py` creates a fresh
+SQLite home per arm, holds bundled procedures constant and saves source-checked
+predictions, frozen matching metrics and run metadata. Full-memory can retrieve
+previous predicted reviews; benchmark provenance prevents semantic learning.
+Separate authored examples assess agreement with stated risk rubrics.
+[ContractGuard evaluation](contractguard/evaluation.md) defines these policies.
+
+The sequential `scripts/demo_review.py` reuses that predictor and deterministic
+report renderer in a fresh home. It saves native review artifacts and atomically
+replaces progress, memory snapshots and cumulative extraction metrics. The
+dashboard's read-only `/api/contractguard` route validates artifacts beneath its
+configured home, derives risk counts and projects saved metrics. `#reviews`
+renders that payload with existing UI primitives and the safe Markdown renderer.
+Provider setup allows this saved-data view while hiding chat without a usable
+provider. [ContractGuard demo](contractguard/demo.md) explains this data flow.
+
 ### MEMORY.md vs state.db
 
 Some assistants (e.g. Hermes) keep long-term memory as a single `MEMORY.md`

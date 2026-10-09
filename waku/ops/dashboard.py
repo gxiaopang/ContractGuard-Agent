@@ -1095,6 +1095,14 @@ class Handler(BaseHTTPRequestHandler):
             window = parse_qs(urlparse(self.path).query).get("window", ["7d"])[0]
             self._send(json.dumps(observability_data(window), default=str).encode(),
                        "application/json")
+        elif self.path == "/api/contractguard" or self.path.startswith("/api/contractguard?"):
+            from urllib.parse import parse_qs, urlparse
+
+            from waku.ops.contractguard import collect as collect_reviews
+
+            selected = parse_qs(urlparse(self.path).query).get("review_id", [None])[0]
+            self._send(json.dumps(collect_reviews(load_settings().home, selected), allow_nan=False).encode(),
+                       "application/json", no_cache=True)
         elif self.path == "/api/judgment-arena":
             from waku.ops import judgment_arena, judgment_cases  # noqa: PLC0415
             self._send(json.dumps({"suites": judgment_cases.suite_list(),

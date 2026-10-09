@@ -136,6 +136,9 @@ BACKGROUND_AWARE = {
     "observe.js": {
         "loadObservability": r'background\s*\?\s*\{headers:\s*BG\}\s*:\s*undefined',
     },
+    "contractguard.js": {
+        "loadContractguard": r'background\s*\?\s*\{headers:\s*BG\}\s*:\s*undefined',
+    },
 }
 
 def _read(name: str) -> str:
@@ -271,6 +274,7 @@ NETWORK_CALLERS = {
     ("judgment.js", "runJudgmentArena"): "user",
     ("main.js", "refresh"): "background",
     ("observe.js", "loadObservability"): "background",
+    ("contractguard.js", "loadContractguard"): "background",
     ("observe.js", "obsJudge"): "user",   # spec 015: the "Judge this turn" click
     ("main.js", "stopMic"): "user",
     ("memory.js", "saveFact"): "user",

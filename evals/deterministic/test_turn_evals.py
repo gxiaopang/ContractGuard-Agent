@@ -10,6 +10,7 @@ research cost "$0.00" while treg charged $0.0089 must fail, and Sean's
 from __future__ import annotations
 
 import json
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -246,7 +247,23 @@ def _home(tmp_path, names):
     return tmp_path
 
 
-def test_the_evals_payload_counts_each_check_per_window(tmp_path):
+@pytest.fixture
+def local_timezone(request, monkeypatch):
+    if not hasattr(time, "tzset"):
+        pytest.skip("setting the process timezone requires time.tzset")
+    try:
+        with monkeypatch.context() as patch:
+            patch.setenv("TZ", request.param)
+            time.tzset()
+            yield
+    finally:
+        time.tzset()
+
+
+@pytest.mark.parametrize("local_timezone,expected_today", [
+    ("UTC", 3), ("Asia/Shanghai", 0),
+], indirect=["local_timezone"])
+def test_the_evals_payload_counts_each_check_per_window(tmp_path, local_timezone, expected_today):
     home = _home(tmp_path, [LEADSFORGE, REHEARSAL, "two-reports.jsonl", "silent-failure.jsonl"])
     yours = obs.payload(home, window="7d", now=NOW)["evals"]["your_turns"]
     assert set(yours) == set(obs.WINDOWS)
@@ -257,8 +274,9 @@ def test_the_evals_payload_counts_each_check_per_window(tmp_path):
     assert spend["pass_rate"] == 0.5
     assert spend["newest_fail"]["turn_id"] == "t_5e1f0c2a9b7d4e36"
     assert spend["newest_fail"]["note"] == "reply says $0.00; this turn's treg calls cost $0.0089"
-    # the 2026-10-02 trace's turn ran at 2026-10-03 18:58 UTC: inside 7 days, not today
-    assert yours["7d"]["turns"] == 4 and yours["today"]["turns"] == 3
+    # NOW is October 5 in UTC and October 6 in Shanghai. "today" uses local
+    # midnight; the seven-day window covers the same four turns in both zones.
+    assert yours["7d"]["turns"] == 4 and yours["today"]["turns"] == expected_today
     assert yours["all"]["judge"] == {"judged": 0, "average": None, "passed": 0}
     # the Overview's "your turns n/m": only the 2026-10-02 turn passed every check
     assert (yours["all"]["turns_passed"], yours["all"]["turns_scored"]) == (1, 4)

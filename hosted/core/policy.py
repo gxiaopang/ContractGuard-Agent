@@ -125,6 +125,8 @@ DECISIONS: dict[str, str] = {
     # spec 012: the Observability page reads only this tenant's own traces,
     # ledger and receipts, so it is per-tenant like /api/data
     "/api/observability": PASS,
+    # Read-only saved reviews and demo snapshots beneath this tenant's home.
+    "/api/contractguard": PASS,
     # spec 015: judges one of this tenant's own stored turns. Like /api/chat it
     # spends through the tenant's own provider, so on the free tier the
     # metering proxy charges it in credits; one call per click, 300 tokens out

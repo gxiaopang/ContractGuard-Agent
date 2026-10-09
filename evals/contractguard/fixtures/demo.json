@@ -1,0 +1,370 @@
+{
+  "version": "authored-demo-v1",
+  "data": [
+    {
+      "title": "Supply agreement",
+      "paragraphs": [
+        {
+          "context": "Supply agreement.\nThis agreement is governed by California law.\nEither party may terminate without cause on thirty days notice.\nSupplier has unlimited liability for fraud.",
+          "qas": [
+            {
+              "id": "Supply agreement__Termination For Convenience",
+              "question": "Identify the clause named \"Termination For Convenience\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "Either party may terminate without cause on thirty days notice.",
+                  "answer_start": 64
+                }
+              ]
+            },
+            {
+              "id": "Supply agreement__Uncapped Liability",
+              "question": "Identify the clause named \"Uncapped Liability\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "Supplier has unlimited liability for fraud.",
+                  "answer_start": 128
+                }
+              ]
+            },
+            {
+              "id": "Supply agreement__Cap On Liability",
+              "question": "Identify the clause named \"Cap On Liability\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Supply agreement__Ip Ownership Assignment",
+              "question": "Identify the clause named \"Ip Ownership Assignment\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Supply agreement__Non-Compete",
+              "question": "Identify the clause named \"Non-Compete\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Supply agreement__Change Of Control",
+              "question": "Identify the clause named \"Change Of Control\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Supply agreement__Governing Law",
+              "question": "Identify the clause named \"Governing Law\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "This agreement is governed by California law.",
+                  "answer_start": 18
+                }
+              ]
+            },
+            {
+              "id": "Supply agreement__Exclusivity",
+              "question": "Identify the clause named \"Exclusivity\".",
+              "is_impossible": true,
+              "answers": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Services agreement",
+      "paragraphs": [
+        {
+          "context": "Services agreement.\nThis agreement is governed by Nevada law.\nLiability is capped at fees paid during the preceding year.\nThe provider assigns all intellectual property created under this agreement to the customer.",
+          "qas": [
+            {
+              "id": "Services agreement__Termination For Convenience",
+              "question": "Identify the clause named \"Termination For Convenience\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Services agreement__Uncapped Liability",
+              "question": "Identify the clause named \"Uncapped Liability\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Services agreement__Cap On Liability",
+              "question": "Identify the clause named \"Cap On Liability\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "Liability is capped at fees paid during the preceding year.",
+                  "answer_start": 62
+                }
+              ]
+            },
+            {
+              "id": "Services agreement__Ip Ownership Assignment",
+              "question": "Identify the clause named \"Ip Ownership Assignment\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "The provider assigns all intellectual property created under this agreement to the customer.",
+                  "answer_start": 122
+                }
+              ]
+            },
+            {
+              "id": "Services agreement__Non-Compete",
+              "question": "Identify the clause named \"Non-Compete\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Services agreement__Change Of Control",
+              "question": "Identify the clause named \"Change Of Control\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Services agreement__Governing Law",
+              "question": "Identify the clause named \"Governing Law\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "This agreement is governed by Nevada law.",
+                  "answer_start": 20
+                }
+              ]
+            },
+            {
+              "id": "Services agreement__Exclusivity",
+              "question": "Identify the clause named \"Exclusivity\".",
+              "is_impossible": true,
+              "answers": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Distribution agreement",
+      "paragraphs": [
+        {
+          "context": "Distribution agreement.\nThis agreement is governed by New York law.\nDistributor will not compete during the term.\nThe distributor will sell the products exclusively within the territory.",
+          "qas": [
+            {
+              "id": "Distribution agreement__Termination For Convenience",
+              "question": "Identify the clause named \"Termination For Convenience\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Distribution agreement__Uncapped Liability",
+              "question": "Identify the clause named \"Uncapped Liability\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Distribution agreement__Cap On Liability",
+              "question": "Identify the clause named \"Cap On Liability\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Distribution agreement__Ip Ownership Assignment",
+              "question": "Identify the clause named \"Ip Ownership Assignment\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Distribution agreement__Non-Compete",
+              "question": "Identify the clause named \"Non-Compete\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "Distributor will not compete during the term.",
+                  "answer_start": 68
+                }
+              ]
+            },
+            {
+              "id": "Distribution agreement__Change Of Control",
+              "question": "Identify the clause named \"Change Of Control\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Distribution agreement__Governing Law",
+              "question": "Identify the clause named \"Governing Law\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "This agreement is governed by New York law.",
+                  "answer_start": 24
+                }
+              ]
+            },
+            {
+              "id": "Distribution agreement__Exclusivity",
+              "question": "Identify the clause named \"Exclusivity\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "The distributor will sell the products exclusively within the territory.",
+                  "answer_start": 114
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Technology agreement",
+      "paragraphs": [
+        {
+          "context": "Technology agreement.\nThis agreement is governed by Delaware law.\nA change of control requires prior written approval.\nLiability is capped at twice the annual fees.",
+          "qas": [
+            {
+              "id": "Technology agreement__Termination For Convenience",
+              "question": "Identify the clause named \"Termination For Convenience\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Technology agreement__Uncapped Liability",
+              "question": "Identify the clause named \"Uncapped Liability\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Technology agreement__Cap On Liability",
+              "question": "Identify the clause named \"Cap On Liability\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "Liability is capped at twice the annual fees.",
+                  "answer_start": 119
+                }
+              ]
+            },
+            {
+              "id": "Technology agreement__Ip Ownership Assignment",
+              "question": "Identify the clause named \"Ip Ownership Assignment\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Technology agreement__Non-Compete",
+              "question": "Identify the clause named \"Non-Compete\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Technology agreement__Change Of Control",
+              "question": "Identify the clause named \"Change Of Control\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "A change of control requires prior written approval.",
+                  "answer_start": 66
+                }
+              ]
+            },
+            {
+              "id": "Technology agreement__Governing Law",
+              "question": "Identify the clause named \"Governing Law\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "This agreement is governed by Delaware law.",
+                  "answer_start": 22
+                }
+              ]
+            },
+            {
+              "id": "Technology agreement__Exclusivity",
+              "question": "Identify the clause named \"Exclusivity\".",
+              "is_impossible": true,
+              "answers": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Consulting agreement",
+      "paragraphs": [
+        {
+          "context": "Consulting agreement.\nThis agreement is governed by Washington law.\nEither party may terminate without cause on ten days notice.\nThe consultant retains its background intellectual property.",
+          "qas": [
+            {
+              "id": "Consulting agreement__Termination For Convenience",
+              "question": "Identify the clause named \"Termination For Convenience\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "Either party may terminate without cause on ten days notice.",
+                  "answer_start": 68
+                }
+              ]
+            },
+            {
+              "id": "Consulting agreement__Uncapped Liability",
+              "question": "Identify the clause named \"Uncapped Liability\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Consulting agreement__Cap On Liability",
+              "question": "Identify the clause named \"Cap On Liability\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Consulting agreement__Ip Ownership Assignment",
+              "question": "Identify the clause named \"Ip Ownership Assignment\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "The consultant retains its background intellectual property.",
+                  "answer_start": 129
+                }
+              ]
+            },
+            {
+              "id": "Consulting agreement__Non-Compete",
+              "question": "Identify the clause named \"Non-Compete\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Consulting agreement__Change Of Control",
+              "question": "Identify the clause named \"Change Of Control\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Consulting agreement__Governing Law",
+              "question": "Identify the clause named \"Governing Law\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "This agreement is governed by Washington law.",
+                  "answer_start": 22
+                }
+              ]
+            },
+            {
+              "id": "Consulting agreement__Exclusivity",
+              "question": "Identify the clause named \"Exclusivity\".",
+              "is_impossible": true,
+              "answers": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

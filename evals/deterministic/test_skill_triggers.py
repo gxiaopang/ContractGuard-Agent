@@ -51,12 +51,48 @@ EVERYDAY = [
     "what is 17 times 23",
     "summarize this article for me",
     "who won the game last night",
+    "inspect the change to my flight",
+    "inspect my intellectual biography",
+    "inspect my email clauses",
 ]
 
 # Each skill must be the FIRST one loaded for its own messages. With every
 # skill loaded together, this is also what catches a new skill taking over an
 # existing skill's messages.
 MESSAGES = {
+    "termination-for-convenience": [
+        "review termination for convenience", "inspect no-cause cancellation notice periods",
+    ],
+    "uncapped-liability": [
+        "review uncapped liability", "inspect unlimited exposure and limitation carve-outs",
+    ],
+    "cap-on-liability": [
+        "review cap on liability", "inspect aggregate ceilings and fee multiples",
+    ],
+    "ip-ownership": [
+        "review IP ownership assignment", "inspect intellectual property transfers",
+        "review IP ownership",
+    ],
+    "non-compete": [
+        "review the non-compete", "inspect competing businesses and competitive activities",
+    ],
+    "change-of-control": [
+        "review change of control", "inspect ownership thresholds and consent triggers",
+    ],
+    "governing-law": [
+        "review governing law", "inspect choice-of-law provisions",
+    ],
+    "indemnification": [
+        "review indemnification clauses", "inspect indemnity obligations and covered claims",
+        "review indemnification",
+    ],
+    "confidentiality": [
+        "review confidentiality obligations", "inspect nondisclosure duties and disclosure exceptions",
+    ],
+    "exclusivity": [
+        "review exclusivity clauses", "inspect exclusive rights and sole suppliers",
+        "review exclusivity",
+    ],
     "schedule-meeting": [
         "schedule coffee with Alex tomorrow at 9am",
         "book a call with Ian on Friday at 3pm",
@@ -138,3 +174,14 @@ def test_every_skill_named_here_still_exists():
     real = {skill.name for skill in LOADER.skills}
     stale = sorted(set(MESSAGES) - real)
     assert not stale, f"MESSAGES names skills that no longer exist: {stale}"
+
+
+@pytest.mark.parametrize('skill,message', [
+    (skill, MESSAGES[skill][0]) for skill in (
+        'termination-for-convenience', 'uncapped-liability', 'cap-on-liability',
+        'ip-ownership', 'non-compete', 'change-of-control', 'governing-law',
+        'indemnification', 'confidentiality', 'exclusivity',
+    )
+])
+def test_named_clause_request_does_not_load_another_clause_skill(skill, message):
+    assert _loaded(message) == [skill]

@@ -6,7 +6,7 @@
 Read this before opening a PR or filing an issue: most of what is already
 known-broken is below, and half of it already has a fix in flight.
 
-**Last updated:** 2026-09-23
+**Last updated:** 2026-10-06
 
 ---
 
@@ -17,10 +17,39 @@ a retrieval gate), tools, and both eval tiers. `waku`, `waku dashboard`,
 `waku voice`, `waku telegram`, `waku discord`, `waku brief` and
 `waku connect google` all start.
 
-**950 deterministic evals pass offline**, with no API key; 60 more are live
-evals that skip without one. CI runs the offline tier on every PR along with
+**Deterministic evals run offline**, with no API key; live cases skip without
+one. CI runs the offline tier on every PR along with
 ruff, the skills validator, and a check that `.env.example` still matches the
 integrations registry.
+
+**ContractGuard reviews plain text through an opt-in tool.**
+`WAKU_CONTRACT_REVIEW=1` enables `review_contract`, ten clause procedures, gated
+SQLite memory, evidence-checked extraction, separate risk assessment and optional
+guidance comparison. The tool saves structured findings and a Markdown report,
+then persists completed positive findings and considers reusable lexical cues.
+[ContractGuard toolchain](contractguard/toolchain.md) explains usage, partial
+failures and cache behavior. Offline evals verify scripted results; live model
+quality remains unmeasured.
+
+**ContractGuard evaluates local CUAD files with isolated memory ablations.**
+`scripts/run_eval.py` supports baseline, semantic-only and full-memory arms,
+frozen span matching, extraction metrics and separate authored risk rubrics.
+CUAD covers eight of the ten review targets; the runner records the other two
+as unscored. Offline smoke runs exercise all three arms without API calls.
+[ContractGuard evaluation](contractguard/evaluation.md) explains commands,
+leakage controls and artifacts. Live CUAD quality and memory improvement remain
+unmeasured.
+
+**ContractGuard shows saved reviews and demo progress in the dashboard.**
+`scripts/demo_review.py --contracts 5 --show-memory-growth --seed 42` reviews
+authored fixtures offline in a fresh home and prints its dashboard command.
+The Reviews page displays validated reports, progress, risk counts, memory
+snapshots and generated extraction metrics. Its tenant-local route starts no
+model calls. [ContractGuard demo](contractguard/demo.md) explains the artifact
+flow, live-run option and limits. Scripted scores establish no live quality or
+memory advantage. [Measured results](contractguard/results.md) records offline
+scores and overhead. [Interview notes](contractguard/interview-notes.md) provide
+engineering resume bullets; performance bullets await finalized live measurements.
 
 **0.1.8 is on PyPI and on GitHub Releases.** Pushing a `v*` tag publishes to
 both, so the repo's "Latest" release always matches `pip install waku-agent`.

@@ -223,11 +223,12 @@ def _junit(tmp_path, tests, failures, skipped):
     return report
 
 
-def test_a_deploy_records_each_check_its_link_and_the_counts_ci_reported(tmp_path):
+@pytest.mark.parametrize("label", ["Deterministic evals", "Offline checks"])
+def test_a_deploy_records_each_check_its_link_and_the_counts_ci_reported(tmp_path, label):
     """The counts come from the notice scripts/ci_test_counts.py prints in CI,
     so this also pins the message format the two sides share."""
     env = _setup(tmp_path)
-    line = notice("Deterministic evals", _junit(tmp_path, 3096, 0, 2))
+    line = notice(label, _junit(tmp_path, 3096, 0, 2))
     title, message = line.removeprefix("::notice title=").split("::", 1)
     (Path(env["FIX"]) / "annotations_100.json").write_text(json.dumps([
         {"annotation_level": "warning", "title": "", "message": "Node.js 20 is deprecated."},
@@ -242,7 +243,7 @@ def test_a_deploy_records_each_check_its_link_and_the_counts_ci_reported(tmp_pat
     det, docker = record["checks"]
     assert det["name"] == "skills-and-evals" and det["conclusion"] == "success"
     assert det["url"].endswith("/job/100")
-    assert det["tests"] == {"label": "Deterministic evals", "passed": 3094, "failed": 0, "skipped": 2}
+    assert det["tests"] == {"label": label, "passed": 3094, "failed": 0, "skipped": 2}
     # hosted-docker wrote no notice here: no count, and nothing made up
     assert docker["name"] == "hosted-docker" and docker["tests"] is None
 

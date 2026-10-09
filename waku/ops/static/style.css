@@ -990,6 +990,7 @@ dialog.dialog :focus-visible{outline:var(--focus-ring-width) solid var(--accent)
   /* The header's status line reads "live - updated 0s ago - <path>", which on
      this screen is a fact about a loop that has not run and cannot. */
   body.first-run #sub { display: none }
+  body.review-only #dock, body.review-only #dock-resizer, body.review-only #dock-reopen { display: none }
   body.first-run main { max-width: calc(var(--spacing) * 160); margin: 0 auto }
   .setup-lede { color: var(--text-muted); margin: 0 0 var(--space-4) }
   .setup-choices { display: flex; flex-wrap: wrap; gap: var(--space-2);

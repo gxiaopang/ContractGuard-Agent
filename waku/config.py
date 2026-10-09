@@ -216,6 +216,10 @@ class Settings:
         t.strip() for t in os.getenv("WAKU_UNAVAILABLE_TOOLS", "").split(",") if t.strip()))
 
     # --- Memory
+    # ContractGuard's local domain context and completed-review memory writes.
+    contract_review: bool = field(
+        default_factory=lambda: os.getenv("WAKU_CONTRACT_REVIEW", "") in ("1", "true", "yes")
+    )
     # Consolidate (distill chats into durable facts) only after N new exchanges.
     consolidate_every: int = field(default_factory=lambda: int(os.getenv("WAKU_CONSOLIDATE_EVERY", "6")))
     retrieval_top_k: int = field(default_factory=lambda: int(os.getenv("WAKU_RETRIEVAL_TOP_K", "4")))

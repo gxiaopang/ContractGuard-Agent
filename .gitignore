@@ -9,6 +9,10 @@ traces/
 dist/
 .pytest_cache/
 .ruff_cache/
+# ContractGuard benchmark inputs and generated experiment runs.
+artifacts/eval/
+artifacts/demo/
+artifacts/datasets/
 .waku/
 .waku.bak-*/
 .waku.prerename-bak/

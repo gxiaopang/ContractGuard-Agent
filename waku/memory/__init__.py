@@ -65,12 +65,21 @@ class Memory:
         self.conn = conn
         self.settings = settings
         self.client = client
+        if settings.contract_review and (
+            settings.semantic_store != "sqlite" or settings.episodic_store != "sqlite"
+            or (episode_store is not None and not isinstance(episode_store, SqliteEpisodeStore))
+        ):
+            raise ValueError("ContractGuard Phase 1 requires SQLite semantic and episodic stores")
         self.facts = self._make_fact_store(conn, settings)
         self.episodes = episode_store if episode_store is not None else self._make_episode_store(conn, settings)
         self.skills = SkillLoader([*bundled_skill_dirs(), settings.home / "skills"])
         # Spec 006: sends each fact consolidation keeps to Waku Memory. app.py
         # sets it once the MCP servers have connected; None means no send.
         self.remember = None
+        if settings.contract_review:
+            from waku.memory.contractguard import seed_clause_knowledge
+
+            seed_clause_knowledge(self.facts)
 
     @staticmethod
     def _make_fact_store(conn, settings):
@@ -106,6 +115,12 @@ class Memory:
 
     # ---- retrieval (gated — see retrieval_gate.py for why)
     def gated_retrieve(self, message: str, notify=None) -> str:
+        if self.settings.contract_review:
+            import json
+
+            context = self.review_context(message, notify=notify)
+            return "\n".join(context['semantic'] + [
+                json.dumps(r, ensure_ascii=False) for r in context['episodic']])
         # Spec 011 A2: with a notify, the gate's model call is counted too.
         client = metered(self.client, "gate", notify) if notify else self.client
         retrieve, query, reason = retrieval_gate.should_retrieve(
@@ -125,10 +140,72 @@ class Memory:
         found = facts + self.episodes.search(query, top_k=3)
         return "\n".join(found)
 
+    def review_context(self, message: str, *, clause_type: str | None = None,
+                       exclude_contract_id: str | None = None, notify=None) -> dict:
+        """Separate domain stores for one review step; exclusion happens before top-k."""
+        from waku.memory.contractguard import CLAUSE_NAMES, clause_facts, review_history
+
+        if not self.settings.contract_review:
+            raise ValueError("review context requires WAKU_CONTRACT_REVIEW=1")
+        if clause_type is not None and clause_type not in CLAUSE_NAMES:
+            raise ValueError("unknown canonical clause type")
+        client = metered(self.client, "gate", notify) if notify else self.client
+
+        decision = retrieval_gate.review_decision(client, self.settings.small_model, message)
+        if clause_type and decision.clause_type not in (None, clause_type):
+            decision = retrieval_gate.ReviewDecision(False, False, "", "gate selected another clause")
+        selected_clause = clause_type or decision.clause_type
+        if notify:
+            notify("gate", {"decision": "retrieve" if decision.semantic or decision.episodic else "skip",
+                            "reason": decision.reason, "semantic": decision.semantic,
+                            "episodic": decision.episodic, "clause_type": selected_clause})
+        facts, episodes = [], []
+        if decision.semantic:
+            facts = clause_facts(self.facts, decision.query, selected_clause,
+                                 self.settings.retrieval_top_k)
+            facts, verdicts = slot_gate.select(message, facts)
+            if notify and verdicts:
+                notify("slot", {"verdicts": verdicts})
+        if decision.episodic:
+            episodes = review_history(self.episodes, clause_type=selected_clause,
+                                      query=decision.query, exclude_contract_id=exclude_contract_id)
+        if notify and (decision.semantic or decision.episodic):
+            notify("retrieval", {"facts": len(facts), "episodes": len(episodes)})
+        return {'semantic': facts, 'episodic': episodes}
+
     # ---- procedural
     def matching_skills(self, message: str) -> str:
-        matched = self.skills.match(message)
+        from waku.memory.contractguard import CLAUSE_SKILLS
+
+        # Filter before taking the loader's two slots; mode-off clause matches
+        # must not crowd out ordinary bundled or user-authored skills.
+        matched = self.skills.match(message, max_skills=len(self.skills.skills))
+        if not self.settings.contract_review:
+            matched = [s for s in matched if s.name not in CLAUSE_SKILLS]
+        matched = matched[:2]
         return "\n\n".join(f"### {s.name}\n{s.body}" for s in matched)
+
+    def complete_review(self, record: dict, source_text: str, *, candidates: list | None = None,
+                        recalled: str = "", notify=None) -> list[dict]:
+        """Explicit grounded review completion after validated extraction and risk assessment.
+
+        Persist history immediately, then optionally learn short lexical cues.
+        An empty candidate list skips the model; None requests model proposals.
+        """
+        from waku.memory.contractguard import store_review
+
+        if not self.settings.contract_review:
+            raise ValueError("completed reviews require WAKU_CONTRACT_REVIEW=1")
+        validated, added = store_review(self.episodes, record, source_text)
+        if notify and added:
+            notify("review_episode", {"contract_id": validated['contract_id'],
+                                      "clause_type": validated['clause_type']})
+        kept = consolidation.consolidate_review(
+            metered(self.client, "consolidation", notify) if notify else self.client,
+            self.settings.small_model, validated, self.facts, candidates=candidates, recalled=recalled)
+        if notify:
+            notify("consolidation", {"new_facts": len(kept), "kept": kept})
+        return kept
 
     # ---- write paths
     def log_chat(self, user_message: str, reply: str, session_id: str = "default",
@@ -255,6 +332,10 @@ class Memory:
         (spec 009 B): its findings stay in it, not in loose facts. `recalled`
         is the memory this turn read: a fact that only repeats it is not kept
         again."""
+        # Free-form chat can contain reports or gold annotations. Only a
+        # grounded complete_review event may write domain knowledge.
+        if self.settings.contract_review:
+            return
         kept = consolidation.kept_if_due(
             self.conn,
             metered(self.client, "consolidation", notify) if notify else self.client,

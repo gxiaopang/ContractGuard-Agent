@@ -78,6 +78,10 @@ class Session:
                  (f"Your model: you are running on '{self.settings.model}' via the "
                  f"'{self.settings.provider}' provider, inside Waku, a local-first "
                  f"open-source agent harness (github.com/ShenSeanChen/waku-agent).")]
+        if self.settings.contract_review:
+            from waku.memory.contractguard import REVIEW_INSTRUCTIONS
+
+            parts.append(REVIEW_INSTRUCTIONS)
         # Spec 009 E: a call the deployment refuses is a wasted step and, on a
         # metered tenant, a wasted turn. Spec 014: with the person's own treg
         # key the relay is not in the path, so treg's tools are all theirs.

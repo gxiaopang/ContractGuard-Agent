@@ -9,6 +9,7 @@ let activeView = null, activeSub = null;
 // out of that page, what remained was two switches that change how a turn runs,
 // which is a behaviour, not a setting.
 const TITLES = {chat:"Chat & watch",
+                reviews:"Reviews — saved contracts and evaluation results",
                 observability:"Observability — what each turn did, cost and remembered",
                 evals:"Evals — whether a turn or a release was good",
                 graph:"Graph workflows — structure around the loop",
@@ -37,7 +38,7 @@ function render(){
   // loop that cannot run a turn -- and the chat box on Overview looks ready
   // and answers APIConnectionError. The gate sends all of them to setup.
   //
-  // There is NO exception, not even #models. An earlier version let that one
+  // Only saved Reviews are readable without a provider. An earlier version let #models
   // page through, because it is where a key is entered -- and produced a page
   // with no way back, reachable only from a screen it then hid. The provider
   // modal is a global overlay: setup.js opens the very same one, over the
@@ -46,7 +47,9 @@ function render(){
   // Nothing is stored and nothing is dismissed: the 5s poll refreshes D, and
   // the moment a provider reads as enabled this branch stops being taken.
   // There is no "I set a key" state to get wrong.
-  if (needsSetup(D)){
+  const readOnlyReviews = needsSetup(D) && v === "reviews";
+  document.body.classList.toggle("review-only", readOnlyReviews);
+  if (needsSetup(D) && v !== "reviews"){
     document.body.classList.add("first-run");
     document.getElementById("title").textContent = "Set up Waku";
     document.getElementById("view").innerHTML = VIEWS.setup(D);

@@ -59,6 +59,7 @@ GET_PATHS = {
     "/embed/chat",
     # spec 012: the Observability page's turns, tools, memory, spend, evals
     "/api/observability",
+    "/api/contractguard",
 }
 
 # Streaming endpoints. These are what the dashboard actually uses for chat and

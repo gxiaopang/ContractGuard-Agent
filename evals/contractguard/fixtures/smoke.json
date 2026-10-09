@@ -1,0 +1,131 @@
+{
+  "version": "authored-smoke-v1",
+  "data": [
+    {
+      "title": "Sample supply",
+      "paragraphs": [
+        {
+          "context": "Sample supply agreement.\nThis agreement is governed by California law.",
+          "qas": [
+            {
+              "id": "Sample supply__Termination For Convenience",
+              "question": "Highlight the parts related to \"Termination For Convenience\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Sample supply__Uncapped Liability",
+              "question": "Highlight the parts related to \"Uncapped Liability\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Sample supply__Cap On Liability",
+              "question": "Highlight the parts related to \"Cap On Liability\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Sample supply__Ip Ownership Assignment",
+              "question": "Highlight the parts related to \"Ip Ownership Assignment\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Sample supply__Non-Compete",
+              "question": "Highlight the parts related to \"Non-Compete\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Sample supply__Change Of Control",
+              "question": "Highlight the parts related to \"Change Of Control\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Sample supply__Governing Law",
+              "question": "Highlight the parts related to \"Governing Law\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "This agreement is governed by California law.",
+                  "answer_start": 25
+                }
+              ]
+            },
+            {
+              "id": "Sample supply__Exclusivity",
+              "question": "Highlight the parts related to \"Exclusivity\".",
+              "is_impossible": true,
+              "answers": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Sample services",
+      "paragraphs": [
+        {
+          "context": "Sample services agreement.\nThis agreement is governed by Nevada law.",
+          "qas": [
+            {
+              "id": "Sample services__Termination For Convenience",
+              "question": "Highlight the parts related to \"Termination For Convenience\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Sample services__Uncapped Liability",
+              "question": "Highlight the parts related to \"Uncapped Liability\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Sample services__Cap On Liability",
+              "question": "Highlight the parts related to \"Cap On Liability\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Sample services__Ip Ownership Assignment",
+              "question": "Highlight the parts related to \"Ip Ownership Assignment\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Sample services__Non-Compete",
+              "question": "Highlight the parts related to \"Non-Compete\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Sample services__Change Of Control",
+              "question": "Highlight the parts related to \"Change Of Control\".",
+              "is_impossible": true,
+              "answers": []
+            },
+            {
+              "id": "Sample services__Governing Law",
+              "question": "Highlight the parts related to \"Governing Law\".",
+              "is_impossible": false,
+              "answers": [
+                {
+                  "text": "This agreement is governed by Nevada law.",
+                  "answer_start": 27
+                }
+              ]
+            },
+            {
+              "id": "Sample services__Exclusivity",
+              "question": "Highlight the parts related to \"Exclusivity\".",
+              "is_impossible": true,
+              "answers": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

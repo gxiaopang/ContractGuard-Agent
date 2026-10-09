@@ -63,9 +63,15 @@ def test_a_charge_is_retried_after_a_5xx_and_not_after_a_4xx(monkeypatch):
     monkeypatch.setattr(wallet_module, "RETRY_DELAYS", (0.0, 0.0, 0.0))
     reports: list[dict] = []
     answers = {"turn-a": [500, 200], "turn-b": [422, 200]}
+    turn_b_received = asyncio.Event()
 
     async def usage(request):
         report = await request.json()
+        # Force reversed arrival: independent background tasks promise no order.
+        if report['turn_id'] == 'turn-a':
+            await turn_b_received.wait()
+        else:
+            turn_b_received.set()
         reports.append(report)
         return web.json_response({}, status=answers[report["turn_id"]].pop(0))
 
@@ -78,4 +84,5 @@ def test_a_charge_is_retried_after_a_5xx_and_not_after_a_4xx(monkeypatch):
     _serve({("POST", "/agent-usage"): usage}, test)
     assert [r["turn_id"] for r in reports].count("turn-a") == 2
     assert [r["turn_id"] for r in reports].count("turn-b") == 1
-    assert reports[0]["usd"] == 0.012346
+    assert [r['usd'] for r in reports if r['turn_id'] == 'turn-a'] == [0.012346, 0.012346]
+    assert [r['usd'] for r in reports if r['turn_id'] == 'turn-b'] == [0.001]

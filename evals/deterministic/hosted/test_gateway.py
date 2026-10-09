@@ -1857,13 +1857,16 @@ def test_two_simultaneous_sign_ins_at_the_cap_cannot_both_start(wired_one_slot):
     assert len(starts) == 2
 
 
-def test_two_simultaneous_requests_at_the_cap_cannot_both_start(wired_one_slot):
+@pytest.mark.parametrize("first_index", [0, 1])
+def test_two_simultaneous_requests_at_the_cap_cannot_both_start(
+        wired_one_slot, monkeypatch, first_index):
     """The same reservation, reached through the forwarder rather than the
     sign-in: two tenants, one slot, two requests in flight at once.
 
-    One is served and one is told the VM is full. Which is which is not the
-    claim -- the claim is that the fleet ends with one container, and that the
-    tenant who lost is told so in the shape the page reads.
+    Both tenants start cold: sign-in pre-warms one, so stop that container
+    before counting request-driven starts. Hold the first start until the
+    other request has answered, proving that a STARTING reservation occupies
+    the slot regardless of which tenant arrived first.
     """
     wired = wired_one_slot
 
@@ -1873,16 +1876,36 @@ def test_two_simultaneous_requests_at_the_cap_cannot_both_start(wired_one_slot):
             wired, sub="sub-one", email="one@example.com")
         second_host, second_cookie = await signed_in_on_the_tenant_host(
             wired, sub="sub-two", email="two@example.com")
-        wired.spawner.stop_delay = 0.05
-        wired.spawner.start_delay = 0.05
+        tenants = [(first_host, first_cookie), (second_host, second_cookie)]
+        for host, _cookie in tenants:
+            await wired.launcher.stop(host.split(".", 1)[0])
+        starting, release = asyncio.Event(), asyncio.Event()
+        original_start = wired.spawner.start
+
+        async def blocked_start(*args, **kwargs):
+            if not starting.is_set():
+                starting.set()
+                await release.wait()
+            return await original_start(*args, **kwargs)
+
+        monkeypatch.setattr(wired.spawner, "start", blocked_start)
         mark = len(wired.spawner.requests)
-        answers = await asyncio.gather(
-            wired.send("GET", "/api/data", host=first_host, cookie=first_cookie),
-            wired.send("GET", "/api/data", host=second_host, cookie=second_cookie))
-        during = wired.spawner.requests[mark:]
-        running = sorted(wired.fleet.running())
-        await wired.stop()
-        return answers, during, running
+        host, cookie = tenants[first_index]
+        first_task = asyncio.create_task(wired.send("GET", "/api/data", host=host, cookie=cookie))
+        try:
+            try:
+                await asyncio.wait_for(starting.wait(), timeout=5)
+                host, cookie = tenants[1 - first_index]
+                second = await asyncio.wait_for(
+                    wired.send("GET", "/api/data", host=host, cookie=cookie), timeout=5)
+            finally:
+                release.set()
+                first = await asyncio.wait_for(first_task, timeout=5)
+            during = wired.spawner.requests[mark:]
+            running = sorted(wired.fleet.running())
+            return [first, second], during, running
+        finally:
+            await wired.stop()
 
     answers, during, running = asyncio.run(run())
     assert sorted(a[0] for a in answers) == [200, 503]

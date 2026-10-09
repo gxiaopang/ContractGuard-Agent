@@ -38,6 +38,14 @@ into four groups.
 | [commands.md](commands.md) | every `waku` and `make` command |
 | [evals.md](evals.md) | the two kinds of eval, the Docker tier, the release gate, traces and spend |
 | [roadmap.md](roadmap.md) | what is live, what is still a skeleton, upgrade paths |
+| [contractguard/phase0-architecture-map.md](contractguard/phase0-architecture-map.md) | Waku's current execution path, ContractGuard extension points and the validated Phase 1 file list |
+| [contractguard/foundation.md](contractguard/foundation.md) | opt-in contract persona, clause knowledge, procedures, review episodes and guarded consolidation |
+| [contractguard/toolchain.md](contractguard/toolchain.md) | grounded plain-text review stages, tool dispatch, structured artifacts, partial failures and cache behavior |
+| [contractguard/evaluation.md](contractguard/evaluation.md) | local CUAD loading, frozen span matching, isolated memory ablations, risk rubrics and reproducible artifacts |
+| [contractguard/demo.md](contractguard/demo.md) | seeded offline/live demos, saved reports, read-only dashboard views and persisted progress |
+| [contractguard/architecture.md](contractguard/architecture.md) | implemented review and evaluation paths, three memory types and their code boundaries |
+| [contractguard/results.md](contractguard/results.md) | measured offline results, artifact provenance, overhead and limits on quality claims |
+| [contractguard/interview-notes.md](contractguard/interview-notes.md) | design choices, actual corrections, architectural trade-offs and verified resume bullets |
 
 ## Whiteboards
 

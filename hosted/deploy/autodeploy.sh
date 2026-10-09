@@ -151,9 +151,9 @@ record_release() {
       tests=$(printf '%s' "$annotations" | jq -c '
         if type != "array" then null else
           [ .[] | select(.annotation_level == "notice")
-            | .title as $label
+            | .title as $check_title
             | ((.message // "") | capture("^(?<passed>[0-9]+) passed, (?<failed>[0-9]+) failed, (?<skipped>[0-9]+) skipped$"))
-            | {label: $label, passed: (.passed | tonumber),
+            | {label: $check_title, passed: (.passed | tonumber),
                failed: (.failed | tonumber), skipped: (.skipped | tonumber)} ]
           | first
         end') || tests=null

@@ -109,7 +109,7 @@ def test_iteration_guardrail_stops_runaway_loop(tmp_path):
                     reason="set WAKU_RUN_LIVE_EVALS=1 and configure an API key to run live evals")
 @pytest.mark.parametrize("case", DATASET, ids=[c["id"] for c in DATASET])
 def test_dataset_case(case, tmp_path):
-    app = make_waku(tmp_path / "home")
+    app = make_waku(tmp_path / "home", **case.get("settings", {}))
     if "setup_fact" in case:
         app.memory.facts.add(case["setup_fact"]["subject"], case["setup_fact"]["content"])
 
@@ -129,3 +129,15 @@ def test_dataset_case(case, tmp_path):
         # actually looped, not satisfied one expectation and stopped
         want = case.get("expect_min_tool_calls", 0)
         assert len(fired) >= want, f"only {len(fired)} tool calls, wanted >= {want}"
+        if case['expect_tool'] == 'review_contract':
+            from waku.tools.contract_schema import validate_findings
+
+            call = next(c for c in result.tool_calls if c['tool'] == 'review_contract')
+            review = json.loads(call['output'])
+            assert review['status'] == 'completed'
+            validate_findings(review['findings'], call['args']['text'], review['request']['clause_types'])
+            expected = case.get('expect_found_clause')
+            if expected:
+                assert any(f['clause_type'] == expected and f['status'] == 'found'
+                           for f in review['findings'])
+            assert Path(review['artifacts']['report']).read_text(encoding='utf-8') == review['report']

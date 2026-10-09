@@ -118,6 +118,7 @@ VIEWS.setup = function(d){
   // from parts rather than designed.
   return uiCard(`
     <p class="setup-lede">${lede}</p>
+    <p class="setup-note">${uiLink("Open saved reviews", "#reviews")} without a model key.</p>
     ${looked}
     <div class="setup-choices">${offered.map(setupChoice).join("")}</div>
     <p class="setup-note">${saveNote} Waku reads the key only when it calls

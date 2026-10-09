@@ -1,4 +1,4 @@
-"""The first-run gate: no usable provider means no dashboard.
+"""The first-run gate keeps model-driven views closed without a usable provider.
 
 WHY THIS EXISTS. Before 2026-09-27 a fresh install opened on Overview with a
 chat box that looked ready, and the first message came back
@@ -38,19 +38,17 @@ def test_render_consults_the_gate_before_choosing_a_view():
         "come first or a gated page still builds.")
 
 
-def test_the_gate_lets_nothing_through():
-    """No view is exempt.
+def test_the_gate_only_allows_saved_reviews_without_a_provider():
+    """Only the read-only saved-reviews page is exempt.
 
     An earlier version let `#models` through, because that is where a key is
     entered -- and produced a page with no way back, reachable only from a
-    screen that then hid it. The provider modal is a global overlay, so
-    setup.js opens the same one over the gate and there is nothing to escape
-    to. A `v !== "..."` beside the gate would bring the locked room back.
+    screen that then hid it. Saved reviews call no model and hide the chat
+    dock; the setup page links directly to them.
     """
     source = MAIN.read_text(encoding="utf-8")
     window = source[source.index("if (needsSetup("):][:200]
-    assert not re.search(r'v\s*!==\s*"', window), (
-        "the gate has an exemption again; see setup.js on why there is none")
+    assert re.findall(r'v\s*!==\s*"([^"]+)"', window) == ["reviews"]
 
 
 def test_the_gate_and_the_models_grid_ask_one_question():

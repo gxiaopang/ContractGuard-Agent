@@ -39,6 +39,11 @@ def build_registry(conn: sqlite3.Connection, settings: Settings, memory=None) ->
         registry.register(memory_admin.make_update_soul_tool(settings))
         registry.register(memory_admin.make_create_skill_tool(settings, memory))
 
+    if settings.contract_review:
+        from waku.tools import contract_review
+
+        registry.register(contract_review.make_tool(settings, memory))
+
     # Experimental tools — off by default; opt in with WAKU_EXPERIMENTAL=1.
     # delegate_task (sub-agents via pi) is live; terminal/browser/cron are
     # still skeletons that report "coming soon".

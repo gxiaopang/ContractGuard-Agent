@@ -11,6 +11,9 @@ Meet **Waku** — a local-first personal assistant that shows the four pillars b
 serious agent: **Harness · Loop · Memory · Eval/LLM-Ops**. No frameworks hiding the good parts.
 Built by [seanchen.io](https://seanchen.io).
 
+This checkout adds **ContractGuard Agent**, an opt-in contract reviewer built on Waku.
+[Try the offline demo](#contractguard-agent) or read its [architecture](docs/contractguard/architecture.md).
+
 - **Local-first.** Your memory is one SQLite file. Open it. Read it. It's yours.
 - **Memory is the hero.** Semantic + episodic + procedural — with a gate that decides *whether*
   to remember, and a pass that decides *what* to keep.
@@ -94,6 +97,69 @@ For live data when it researches, `waku connect treg` (or `/connect treg`) signs
 codebase you *own*: the loop, the memory schema, the gate and the eval harness are all yours to
 read and change. Versus the big open-source assistants (OpenClaw, Hermes)? Same architecture,
 1/100th the code.
+
+## ContractGuard Agent
+
+ContractGuard turns plain contract text into source-backed clause findings,
+risk assessments and a saved report. The project tests whether reusable clause
+knowledge and prior review episodes can help later reviews. Live model quality
+and memory improvement remain unmeasured.
+
+**Why Waku?** Its visible Harness, Loop, Memory and Eval boundaries let this
+project extend tool dispatch, context assembly and persistence without adding
+a second agent framework. Its [diagram](docs/contractguard/architecture.md) maps each boundary to code.
+
+**Review workflow.** Set `WAKU_CONTRACT_REVIEW=1` for interactive review.
+The existing loop dispatches `review_contract`: parse plain text, retrieve
+clause context, extract exact source quotations, assess HIGH/MEDIUM/LOW risk,
+optionally compare semantic guidance, and save structured findings plus Markdown.
+Python validates evidence offsets before a finding enters a report or memory.
+The tool distinguishes missing clauses from failed stages.
+
+| Memory | ContractGuard stores |
+|---|---|
+| Semantic: what is known | ten seeded clause definitions and guidance; normal reviews may add validated lexical cues |
+| Episodic: what happened | completed positive findings with source evidence, recommendations and review provenance |
+| Procedural: how to act | ten bundled clause-review skills, loaded independently of database facts |
+
+The retrieval gate selects semantic and episodic context independently.
+History excludes the current document before taking its top three matches.
+Gating aims to reduce irrelevant context, but gate calls add overhead;
+token savings and latency benefits require live measurements.
+
+**CUAD and memory ablation.** The evaluator scores eight mapped CUAD categories
+with fixed character IoU >= 0.5 and one-to-one span matching. Indemnification and
+Confidentiality Obligations remain unscored because CUAD lacks those categories.
+Baseline, semantic-only and full-memory use isolated homes, identical procedures
+and the same contract order. Gold annotations stay on the scoring side;
+benchmark predictions never become semantic facts. CUAD provides no risk labels.
+
+**Measured results, offline only (2026-10-06).** All three arms completed 102
+official test contracts with no stage failures. Full-memory retained ten fixed
+facts and 166 prediction episodes. The five-contract authored demo retained
+15 episodes and retrieved 69 memory items. These scripted runs verify engineering
+behavior; they do not measure LLM extraction quality or demonstrate a memory gain.
+The [results record](docs/contractguard/results.md) preserves scores, overhead,
+artifact provenance and reproduction commands.
+
+From an installed checkout, run the demo without an API key:
+
+```bash
+python scripts/demo_review.py --contracts 5 --show-memory-growth --seed 42
+```
+
+Run the printed `WAKU_HOME=... python -m waku dashboard` command in another
+terminal, then open `http://localhost:7777/#reviews`. The Reviews page reads saved
+progress, risk counts, memory snapshots, metrics and reports without model calls.
+[Demo instructions](docs/contractguard/demo.md) cover the live option and artifacts.
+
+**Limits.** Interactive input accepts plain text up to 200,000 characters;
+PDF ingestion is absent. Benchmark stages preserve full text, subject to provider
+context limits. Evidence checks establish quotation validity, not legal correctness.
+Atomic files and SQLite writes do not form one transaction. Live CUAD quality,
+general risk accuracy and memory benefit require additional experiments.
+[Interview notes and verified resume bullets](docs/contractguard/interview-notes.md)
+explain design choices, regressions and the claims current evidence supports.
 
 ## Docs
 

@@ -1,35 +1,28 @@
 # ContractGuard Agent
 
-ContractGuard Agent extends [Waku](https://github.com/ShenSeanChen/waku-agent)
-with contract clause extraction, risk assessment and reusable review memory.
-It turns plain contract text into findings backed by source quotations and
-saves structured results alongside a Markdown report.
+ContractGuard Agent 基于 [Waku](https://github.com/ShenSeanChen/waku-agent)，
+新增合同条款提取、风险评估和可复用的审查记忆。
+它从合同原文中提取条款证据，生成审查结果，并保存结构化数据和 Markdown 报告。
 
-## What we added
+## 主要改进
 
-- **Contract review workflow.** The agent parses contracts, retrieves clause
-  context, extracts evidence, assesses HIGH/MEDIUM/LOW risk and compares findings
-  with available guidance through one `review_contract` tool.
-- **Evidence validation.** Python verifies exact quotations and source offsets
-  before findings enter reports or memory. Reports distinguish missing clauses
-  from failed review stages.
-- **Domain memory and skills.** Ten clause-review skills work with semantic
-  definitions and guidance, plus episodic memory of completed findings.
-  The retrieval gate selects relevant context and excludes the current document
-  from review history.
-- **Reproducible evaluation.** The CUAD runner compares baseline, semantic-only
-  and full-memory configurations in isolated homes. It reports precision,
-  recall and F1 with fixed span matching and keeps gold annotations out of
-  model inputs and memory.
-- **Review dashboard.** The Reviews page displays saved reports, risk counts,
-  review progress, memory snapshots and extraction metrics.
+- **合同审查流程。** 通过 `review_contract` 工具完成合同解析、条款上下文检索、
+  证据提取和高／中／低风险评估，并在有参考指引时进行对比。
+- **原文证据校验。** Python 校验引用文本及其在原文中的位置，
+  校验通过后才将结果写入报告或记忆。报告分别记录条款缺失和审查阶段失败。
+- **领域记忆与技能。** 新增十类条款审查技能，结合语义记忆中的条款定义与指引，
+  以及情节记忆中的历史审查结果。检索门控按需选择上下文，并排除当前合同的历史记录。
+- **可复现评测。** 基于 CUAD，在独立数据目录中对比基线、仅语义记忆和完整记忆三种配置。
+  使用固定的文本片段匹配规则计算精确率、召回率和 F1，标准答案不进入模型输入或记忆。
+- **审查仪表盘。** Reviews 页面展示已保存的报告、风险统计、审查进度、
+  记忆快照和条款提取指标。
 
-These additions reuse Waku's agent loop, provider adapters, SQLite memory and
-local dashboard. Contract review is enabled with `WAKU_CONTRACT_REVIEW=1`.
+这些改进复用 Waku 的智能体循环、模型适配器、SQLite 记忆和本地仪表盘。
+设置 `WAKU_CONTRACT_REVIEW=1` 即可启用合同审查。
 
-## Quickstart
+## 快速开始
 
-Install this checkout to get the ContractGuard additions:
+克隆并安装本项目：
 
 ```bash
 git clone https://github.com/gxiaopang/ContractGuard-Agent.git
@@ -40,39 +33,42 @@ python -m pip install -e .
 cp .env.example .env
 ```
 
-Run the offline demo with five sample contracts:
+运行包含五份示例合同的离线演示：
 
 ```bash
 python scripts/demo_review.py --contracts 5 --show-memory-growth --seed 42
 ```
 
-The demo uses scripted responses and needs no API key. Run its printed
-`WAKU_HOME=... python -m waku dashboard` command in another terminal, then open
-`http://localhost:7777/#reviews` to inspect reports and memory growth.
+演示使用预设响应，无需 API Key。在另一个终端执行演示输出的
+`WAKU_HOME=... python -m waku dashboard` 命令，再打开
+`http://localhost:7777/#reviews` 查看审查报告和记忆增长。
 
-For interactive review, configure your provider and API key in `.env`, then run:
+进行交互式审查时，先在 `.env` 中配置模型服务和 API Key，再运行：
 
 ```bash
 export WAKU_CONTRACT_REVIEW=1
 python -m waku
-# Or use the dashboard:
+# 也可以使用仪表盘：
 python -m waku dashboard
 ```
 
-Ask the agent to review contract text for selected clauses. The review tool
-accepts plain text up to 200,000 characters.
+将合同文本发给智能体，并指定需要审查的条款。
+审查工具支持最多 200,000 个字符的纯文本输入。
 
-## Documentation
+## 项目文档
 
-- [Architecture](docs/contractguard/architecture.md) maps the additions to code.
-- [Review toolchain](docs/contractguard/toolchain.md) explains stages and storage.
-- [Evaluation](docs/contractguard/evaluation.md) documents CUAD and memory ablations.
-- [Demo](docs/contractguard/demo.md) explains dashboard usage and saved artifacts.
-- [Results](docs/contractguard/results.md) records offline runs and reproduction commands.
+- [架构设计](docs/contractguard/architecture.md) 说明各项改进对应的代码模块。
+- [审查工具链](docs/contractguard/toolchain.md) 介绍审查阶段和存储方式。
+- [评测方案](docs/contractguard/evaluation.md) 说明 CUAD 评测和记忆消融实验。
+- [演示指南](docs/contractguard/demo.md) 介绍仪表盘使用方式和生成文件。
+- [实验结果](docs/contractguard/results.md) 记录离线实验和复现命令。
 
-## Attribution and license
+## 致谢与许可证
 
-ContractGuard builds on Waku by [ShenSeanChen](https://github.com/ShenSeanChen).
-Code uses the [MIT license](LICENSE), except `hosted/`, which uses
-[Elastic License 2.0](hosted/LICENSE). The Waku name, mark and design system
-remain covered by [LICENSE-BRAND](LICENSE-BRAND).
+本项目基于 [ShenSeanChen](https://github.com/ShenSeanChen) 开发的 Waku。
+
+合同审查实现与 Waku 核心代码采用 [MIT 许可证](LICENSE)。
+
+`hosted/` 目录采用 [Elastic License 2.0](hosted/LICENSE)。
+
+Waku 名称、标志和设计系统遵循 [LICENSE-BRAND](LICENSE-BRAND)。

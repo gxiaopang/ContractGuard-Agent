@@ -49,40 +49,60 @@ Each procedure describes
 its own detection cues, steps, risk signals, evidence and recommendation rules.
 Shared grounding rules live in the opt-in persona.
 
-## Completed reviews and consolidation
+## Human-approved review records
 
-`Memory.complete_review(record, source_text, ...)` is the explicit completion
-event. It validates the entire record before writing any review memory. A
-versioned JSON summary preserves contract id, contract name, canonical clause,
-risk, finding summary, evidence spans, recommendation, timestamp and origin.
-Evidence uses Python character offsets and must quote the supplied source text
-exactly. Timestamps must include a timezone. Duplicate summaries are not added
-again. SQLite's existing `episodes` table and FTS index store these summaries;
-no migration or new store is needed. Source documents are not copied into facts.
+`WAKU_CONTRACT_MEMORY_UPGRADE=1` enables the [scoped-memory upgrade](memory-eval-design.md)
+alongside contract review mode. The server derives access scope from the configured
+home. Review context records project, contract type, party, role, jurisdiction,
+policy version and date without inventing missing values. These fields and the
+memory snapshot participate in cache identity.
 
-Completion persists the episode immediately and then requests optional reusable
-patterns from the small model through `consolidation.consolidate_review()`.
-Callers can supply candidate patterns explicitly for offline use. Candidates
-have a kind (`variant` or `risk_pattern`), a short lowercase lexical pattern and
-an evidence index. The writer checks the exact schema, evidence grounding,
-contract identity, novelty and recalled content before constructing a fact.
-It stores a short pattern with fixed review guidance, never model-written
-reports or free-form fact bodies. Model or JSON failure leaves the episode
-stored and returns no new facts. Repeating completion can retry consolidation.
+The upgraded retrieval path reads an additive SQLite domain index. It filters
+approval state, scope, source identity, context and effective dates before ranking
+and limiting records. Trace events name selected and excluded records and their
+character budget. Bundled definitions declare general applicability within the
+configured home. Existing unscoped episodes remain inspectable and do not enter
+upgraded retrieval. Disabling the upgrade does not recall scoped records through
+the legacy path. Reviews, corrections and experience rules with unknown role or
+policy version remain inspectable but do not supply review guidance.
 
-Review mode disables generic chat-log consolidation. A chat response alone
-cannot prove that a grounded review finished, and a chat may contain benchmark
-annotations. Default Waku still consolidates every configured number of
-exchanges. Completed-review consolidation has its own immediate trigger and
-uses existing gate, consolidation and metering events.
+New scoped approvals use `contractguard_review_v3`. Explicit human corrections
+also store `contractguard_correction_v1` records with original and replacement
+findings, context and saved decision provenance. A corrected absence contains no
+positive evidence. Rejection creates no correction rule. Experience and policy
+proposals remain candidates until a separate approval; experience proposals require
+regression case identities. Lifecycle decisions retain history and serialize
+expected revisions. Migration initializes additive tables without deleting data.
 
-A record's origin is `review` or `benchmark_prediction`. Benchmark predictions
-may become prior-review episodes for a later full-memory experiment, but they
-never generate semantic patterns. Gold annotations have no accepted input field
-and must never be supplied as source text, evidence or model context. Callers
-must keep provenance honest: validation cannot detect a caller relabelling gold
-answers as a genuine review. The [benchmark runner](evaluation.md) uses isolated
-homes and controls retrieval, skills and writes separately for each ablation arm.
+Ordinary review generation saves a report for human review. The Reviews page
+accepts confirmation, correction or rejection. `Memory.complete_review()`
+requires ordinary records to match a saved approval journal and exact source.
+A model-supplied boolean cannot approve a report.
+
+Default-mode approved episodes use `contractguard_review_v2` with the existing contract id,
+name, clause type, risk, summary, evidence, recommendation and origin fields.
+They also carry `review_id`, `decision_id` and `approved_at`; their timestamp is
+the server's approval timestamp. Retrieval continues decoding historical
+`contractguard_review_v1` summaries without fabricating approval metadata.
+The existing episodes table and FTS index store both versions. Whole contracts
+remain in review artifacts and do not become semantic facts.
+
+The approval function passes `candidates=[]` and makes no model request.
+Confirmation stores positive episodes, updates memory exports and learns no new
+semantic patterns. The standalone lexical-cue validator remains available for
+algorithm checks; ordinary facade callers cannot trigger it during approval.
+SQLite serializes duplicate checks and insertion. A separate journal lets a
+failed approval finish its missing writes without changing the decision timestamp.
+
+Review mode disables generic chat-log consolidation. A chat response cannot
+approve a report. Default Waku still consolidates ordinary chats at its configured
+interval. Seeded clause guidance and procedure skills remain available.
+
+An isolated evaluator can store `benchmark_prediction` v1 episodes for a later
+full-memory experiment. These episodes cannot generate semantic patterns or
+receive human approval through the dashboard. Gold annotations remain outside
+source, evidence and model context. The [benchmark runner](evaluation.md)
+uses isolated homes and controls retrieval, skills and writes per ablation arm.
 
 ## Learning checkpoint
 
@@ -90,8 +110,8 @@ Semantic facts describe reusable clause wording and review cues. Episodic
 summaries describe a particular reviewed contract and its conclusion. Procedure
 bodies reach the system prompt after the user's message matches their skill
 metadata. Session assembly causes one retrieval decision before each loop run;
-only selected stores contribute memory. The completion API causes immediate
-review persistence and optional semantic consolidation.
+only selected stores contribute memory. The completion API verifies saved human
+approval before ordinary review persistence. Confirmation does not perform semantic consolidation.
 
 SQLite stores facts, dated review summaries and ordinary chat rows in their
 existing tables. It does not store procedure bodies there. Raw reports, whole
@@ -101,5 +121,5 @@ repeat annotations rather than extract clauses, invalidating measured results.
 
 Offline evals verify these interfaces and scripted model requests. They do not
 measure live clause extraction, legal correctness or memory improvement. The
-review tool connects validated findings to the completion event. The benchmark
+review tool connects validated findings to the human review queue. The benchmark
 uses [verified CUAD categories and a fixed ablation policy](evaluation.md).

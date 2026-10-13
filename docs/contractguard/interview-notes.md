@@ -122,10 +122,10 @@ caller. Complete benchmark sources preserve evidence offsets, but large sources
 can exceed a provider's context budget. Source validation proves a quotation
 exists; it cannot prove a legal interpretation or recommendation is correct.
 
-Atomic artifact replacement and a ready journal allow sequential persistence
-retry. SQLite episode deduplication prevents repeat writes. These mechanisms
-do not provide one transaction across all files and memory, or coordination
-between concurrent review processes. Dashboard snapshots may temporarily lag
+Atomic artifact replacement and a human decision journal allow persistence
+retry. SQLite transactions serialize decisions and suppress duplicate episodes.
+These mechanisms do not provide one transaction across all files and memory.
+Generation caching does not coordinate simultaneous model calls. Dashboard snapshots may temporarily lag
 reports. The reader validates artifacts and exposes unavailable metrics rather
 than generating replacement numbers.
 
@@ -143,9 +143,9 @@ below. Retain the offline qualification when using the measured contract count.
 **ContractGuard Agent — contract-review extension of Waku**
 
 - Adapted Waku's existing Harness, Loop, Memory and Eval architecture into an opt-in reviewer for ten clause types, with source-validated extraction, risk assessment and structured reports.
-- Integrated seeded semantic knowledge, completed review episodes and ten procedural skills with independent retrieval gating, current-document exclusion and guarded consolidation.
+- Integrated seeded semantic knowledge, human-approved review episodes and ten procedural skills with independent retrieval gating, current-document exclusion and evidence validation.
 - Built an isolated three-arm memory-ablation evaluator and completed an offline scripted integration run on all 102 CUAD test contracts across eight mapped categories, with fixed span matching and gold excluded from prediction context.
-- Added reproducible prediction artifacts, deterministic regression evals and a read-only dashboard showing saved reports, review progress, risk counts, memory growth and generated metrics.
+- Added reproducible prediction artifacts, deterministic regression evals and a dashboard supporting human confirmation, correction and rejection alongside saved reports, review progress, risk counts, memory growth and generated metrics.
 
 Performance bullets remain deferred until finalized live artifacts exist.
 Do not describe the authored demo's F1 of 1.0 as CUAD accuracy, describe
@@ -158,6 +158,6 @@ models, dataset coverage, matcher, run artifacts and observed comparison.
 1. Run the [five-contract offline demo](demo.md#run-the-demo) and open its printed dashboard home at `#reviews`.
 2. Select a report and trace a quotation from its finding back to the saved source offsets.
 3. Show the semantic, episodic and procedural counts, then explain why episode growth is not a quality metric.
-4. Walk through the [architecture](architecture.md), including direct benchmark stages and read-only dashboard access.
+4. Walk through the [architecture](architecture.md), including direct benchmark stages and human-approved memory writes.
 5. Show the [official offline results](results.md#official-cuad-integration-run), including equal scores and added gate calls.
 6. Explain the eight-category mapping, source-only prediction boundary and one trade-off that still needs live measurement.

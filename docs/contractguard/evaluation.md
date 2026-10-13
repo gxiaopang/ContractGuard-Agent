@@ -1,5 +1,68 @@
 # ContractGuard evaluation
 
+The [memory upgrade](memory-eval-design.md) also evaluates generated or local
+versioned cases without requiring manual annotation or a selected external dataset:
+
+```bash
+python scripts/run_eval.py --upgrade --repetitions 2 --seed 42
+python scripts/run_eval.py --upgrade --experiment sequential --seed 42
+python scripts/run_eval.py --upgrade --cases /path/to/local-cases.json
+```
+
+The default upgrade command runs offline. It generates positive, negative,
+formatting and unscored cases for all ten targets. The generator derives exact
+extraction spans from inserted source templates and supplies no risk labels.
+Case references declare coverage per metric; unmarked targets remain unscored.
+Adapters project only source identity, text and context to prediction.
+
+A local case file contains a JSON array of `contractguard_case_v1` objects.
+Each object supplies `id`, `family_id`, `text`, `targets`, `context` and `reference`.
+`reference` contains `extraction`, `risk`, `rubrics`, `checks`, `critical_targets`
+and `severity_weights`. The first four and `severity_weights` are target-keyed
+objects; `critical_targets` is a list of requested targets. A target with no
+`extraction` entry is unscored. An explicit empty span list marks annotated
+absence. Each positive span contains exact `text`, `start` and `end` fields.
+Cases without labels can leave reference objects and `critical_targets` empty.
+The evaluator will still record failures, usage and optional judge opinions.
+
+The four arms use no retrieved memory, semantic definitions, approved-history
+fixtures and approved-history fixtures plus corrections. Every arm owns a new
+home and uses fixed procedures. Fixture histories use labelled scripted approval
+decisions rather than actual human reviews. Frozen arms preserve their initial
+memory snapshot. Sequential arms store source-only scripted feedback after
+scoring and never receive scoring references through that feedback path.
+
+Artifacts preserve generator or case hashes, model and prompt settings, procedure
+content, code hashes, policy and profile versions, order, repetitions, before/after
+memory snapshots, retrieval decisions, feedback timing, per-case matches, usage
+and paired differences. Family-level resampling supplies uncertainty estimates
+for independent groups; a single sequential run has no independent interval.
+Repeated sequential runs report intervals across whole sequences. Comparison
+artifacts also report per-clause and macro extraction scores, repetition ranges,
+regression rates, latency budgets and an independent metadata retrieval audit.
+Contamination checks flag related families and near duplicates. These generated
+experiments make no held-out quality claim. Failures and regressions remain visible.
+
+`--live` uses real model calls. `--judge` adds separate evidence, exceptions,
+perspective, recommendations, memory-use and uncertainty opinions. The judge
+requires criterion-level reasons and exact current-source citations. Its model,
+rubric and usage are recorded. Uncalibrated opinions leave legal quality unverified.
+Human acceptance, unreferenced risk and unsupported evidence-support metrics
+remain null rather than receiving fabricated scores.
+
+`--quality-profile` accepts a local `contractguard_quality_profile_v1` object with
+a version and criteria mapping. Each criterion declares `maximum` and
+`minimum_support`. Thresholds are recorded before execution. No default numerical
+quality threshold is selected. Every arm saves `memory/contractguard/quality.json`
+for dashboard inspection. The strict release command rejects unmeasured quality:
+
+```bash
+python -m waku.ops.release_gate --contractguard-report /path/to/quality.json --strict-quality
+```
+
+The following CUAD adapter and authored risk commands retain their original
+matching and memory policies.
+
 ContractGuard evaluates extraction against CUAD spans and evaluates risk against
 separate authored examples. These tasks use different reference data. CUAD
 clause presence never supplies a HIGH, MEDIUM or LOW risk label.

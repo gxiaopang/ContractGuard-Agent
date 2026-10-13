@@ -24,6 +24,21 @@ class SqliteEpisodeStore:
         )
         self.conn.commit()
 
+    def add_once(self, summary: str, happened_at: str) -> bool:
+        """Serialize the existence check and insert across SQLite connections."""
+        self.conn.execute("BEGIN IMMEDIATE")
+        try:
+            cursor = self.conn.execute(
+                "INSERT INTO episodes (happened_at, summary) SELECT ?,? "
+                "WHERE NOT EXISTS (SELECT 1 FROM episodes WHERE summary=?)",
+                (happened_at, summary, summary),
+            )
+            self.conn.commit()
+            return cursor.rowcount == 1
+        except Exception:
+            self.conn.rollback()
+            raise
+
     def search(self, query: str, top_k: int = 3) -> list[str]:
         """Relevance first (FTS), most recent first among matches."""
         fts = _fts_query(query)

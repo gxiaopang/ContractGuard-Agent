@@ -4,6 +4,15 @@ ContractGuard adds clause-review tools and domain memory to Waku's existing
 interactive loop. The benchmark and demo call the same extraction and risk
 functions directly so experiments can control source order and memory policy.
 
+The opt-in [memory upgrade](memory-eval-design.md) adds a versioned review profile
+and source-bound working context. An additive SQLite domain index enforces
+applicability and lifecycle before ranking recalled records. Saved human decisions
+authorize scoped approvals and correction records. The Reviews page displays
+provenance and exposes human-only memory lifecycle actions. The generic evaluator
+generates reference spans locally and runs frozen or sequential memory experiments
+without a manual annotation prerequisite. Quality remains explicitly unverified
+when calibration or scored criteria are unavailable.
+
 ```mermaid
 flowchart TD
     H[Harness: CLI or dashboard chat] --> S[Session: persona and context]
@@ -21,16 +30,16 @@ flowchart TD
     PM --> R
     T --> R
     R --> A[Validated findings and saved reports]
-    A --> C[Completed positive review findings]
+    A --> D[Dashboard: Reviews]
+    D --> HR[Human confirmation or correction]
+    HR --> C[Approved positive review findings]
     C --> EM
-    C --> K[Consolidation: normal reviews only]
-    K --> SM
     E[Eval and demo: isolated arms, source-only input] --> R
-    E --> C
+    E --> BP[Benchmark prediction history]
+    BP --> EM
     R --> E
     GOLD[Gold spans: scoring only] --> E
     E --> M[Metrics and demo progress snapshots]
-    A --> D[Dashboard: read-only Reviews page]
     M --> D
     SM --> D
     EM --> D
@@ -56,16 +65,20 @@ Risk assessment refers to extracted evidence indices. Optional comparison
 requires semantic guidance and validates both source and guidance quotations.
 The report renderer consumes validated findings; it never supplies metric input.
 
-The tool saves the document, structured result and report before learning from
-completed positive findings. A ready journal lets persistence retry without
-repeating completed model stages. A completed cache is validated before reuse.
-Partial reviews retain errors and validated stages but do not add review episodes.
+The tool saves ordinary documents, structured results and reports as pending
+human review. Generation writes no episodes or learned facts. A person confirms,
+corrects or rejects a complete report in Reviews. The decision journal preserves
+the original findings and records accepted findings separately. The server
+validates corrected quotations against the saved source before writing memory.
+Partial reports cannot receive approval.
 
-Normal review completion stores prediction history and may consolidate short,
-novel lexical cues grounded in the source. Consolidation excludes full contracts,
-reports, recalled facts and repeated generic guidance. Benchmark provenance
-disables semantic promotion. These checks validate stored evidence and scope;
-they do not prove a model's commercial or legal interpretation.
+The memory facade checks saved approval provenance for each ordinary v2 episode.
+Confirmation makes no model call and learns no semantic cues. SQLite serializes
+competing decisions and duplicate checks; interrupted writes resume from the
+saved decision. Existing v1 history remains readable as legacy automatic data.
+Benchmark prediction history retains its explicit evaluation-only exception and
+cannot use the human-decision endpoint. Evidence checks do not establish a
+model's commercial or legal interpretation.
 
 ## Controlled evaluation and observation
 
@@ -81,8 +94,10 @@ The demo uses this predictor and generates native review artifacts from its
 validated findings. It writes queue and memory snapshots before calls and after
 reviews. The existing dashboard reads those artifacts, generated metrics and
 local memory counts through `GET /api/contractguard`. That route starts no
-agent or model call. Native interactive reviews supply reports but have no demo
-queue or evaluation snapshot unless a runner generated one.
+agent or model call. Native interactive reviews expose their pending approval
+queue, but have no demo evaluation snapshot. The selected ordinary report also
+exposes its bounded source and human decision. `POST /api/contractguard/review`
+stores the decision within the same configured home.
 
 ## Code map
 
@@ -91,11 +106,14 @@ queue or evaluation snapshot unless a runner generated one.
 | Harness and session | [runtime/session.py](../../waku/runtime/session.py), [ops/dashboard.py](../../waku/ops/dashboard.py) |
 | Loop and tools | [loop/agent.py](../../waku/loop/agent.py), [tools/contract_review.py](../../waku/tools/contract_review.py) |
 | Review stages | [contract_parser.py](../../waku/tools/contract_parser.py), [clause_extractor.py](../../waku/tools/clause_extractor.py), [risk_scorer.py](../../waku/tools/risk_scorer.py), [clause_differ.py](../../waku/tools/clause_differ.py), [report_generator.py](../../waku/tools/report_generator.py) |
+| Human decisions | [tools/human_review.py](../../waku/tools/human_review.py) |
 | Evidence and finding contracts | [contract_schema.py](../../waku/tools/contract_schema.py) |
 | Memory and retrieval gate | [memory/__init__.py](../../waku/memory/__init__.py), [memory/contractguard.py](../../waku/memory/contractguard.py), [retrieval_gate.py](../../waku/memory/retrieval_gate.py) |
+| Scoped memory | [contractguard_context.py](../../waku/memory/contractguard_context.py), [contractguard_store.py](../../waku/memory/contractguard_store.py), [contractguard_records.py](../../waku/memory/contractguard_records.py), [domain_review.py](../../waku/tools/domain_review.py) |
 | Procedures | [skills/community/](../../skills/community/) |
 | Consolidation | [memory/consolidation.py](../../waku/memory/consolidation.py) |
 | Eval | [predictor.py](../../evals/contractguard/predictor.py), [runner.py](../../evals/contractguard/runner.py), [matching.py](../../evals/contractguard/matching.py), [metrics.py](../../evals/contractguard/metrics.py) |
+| Upgrade eval | [cases.py](../../evals/contractguard/cases.py), [upgrade_runner.py](../../evals/contractguard/upgrade_runner.py), [quality.py](../../evals/contractguard/quality.py), [contractguard_judge.py](../../waku/ops/contractguard_judge.py) |
 | Demo | [demo_review.py](../../scripts/demo_review.py), [evals/contractguard/demo.py](../../evals/contractguard/demo.py) |
 | Dashboard reader and view | [ops/contractguard.py](../../waku/ops/contractguard.py), [js/contractguard.js](../../waku/ops/static/js/contractguard.js) |
 

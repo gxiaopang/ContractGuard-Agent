@@ -1206,7 +1206,52 @@ class Handler(BaseHTTPRequestHandler):
         self._send(target.read_bytes(), ctype, no_cache=True)
 
     def do_POST(self):
-        length = int(self.headers.get("Content-Length", 0))
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            self.send_error(400, "Invalid Content-Length")
+            return
+        if self.path in ("/api/contractguard/review", "/api/contractguard/memory"):
+            import sqlite3
+            from urllib.parse import urlparse
+
+            from waku.tools.contract_schema import load_json
+            from waku.tools.human_review import ReviewConflict, submit_review
+
+            origin = self.headers.get("Origin")
+            if (self.headers.get("Sec-Fetch-Site") == "cross-site"
+                    or (origin and urlparse(origin).netloc != self.headers.get("Host"))):
+                self.send_error(403, "Review decisions require same-origin access")
+                return
+            if self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+                self.send_error(415, "Review decisions require JSON")
+                return
+            if not 0 < length <= 1_000_000:
+                self.send_error(413, "Review submission exceeds the request limit")
+                return
+            try:
+                payload = load_json(self.rfile.read(length).decode("utf-8"))
+                if self.path == "/api/contractguard/memory":
+                    from waku.tools.domain_review import submit_memory
+
+                    record = submit_memory(load_settings(), payload)
+                    out = {"ok": True, "status": record["state"], "memory_id": record["id"],
+                           "revision": record["revision"]}
+                else:
+                    journal = submit_review(load_settings(), payload)
+                    out = {"ok": True, "status": journal["status"], "decision_id": journal["decision_id"]}
+            except ReviewConflict as exc:
+                out = {"error": str(exc), "code": "conflict"}
+            except (ValueError, TypeError, KeyError, UnicodeError):
+                out = {"error": "Memory decision is invalid or stale. Reload the record and check guidance."
+                       if self.path == "/api/contractguard/memory" else
+                       "Review submission or saved evidence is invalid. Check quotations and fields.",
+                       "code": "validation"}
+            except (OSError, sqlite3.Error):
+                out = {"error": "Saving failed. Retry the same decision to finish storing approved findings.",
+                       "code": "persistence"}
+            self._send(json.dumps(out, allow_nan=False).encode(), "application/json", no_cache=True)
+            return
         # /api/voice takes a raw audio blob, not JSON — handle it first.
         if self.path == "/api/voice":
             raw = self.rfile.read(length)

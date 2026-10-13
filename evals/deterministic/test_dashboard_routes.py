@@ -32,6 +32,8 @@ from waku.ops import dashboard
 POST_ROUTES = {
     "/api/chat",
     "/api/memory",
+    "/api/contractguard/review",
+    "/api/contractguard/memory",
     "/api/settings",
     "/api/query",
     "/api/session",

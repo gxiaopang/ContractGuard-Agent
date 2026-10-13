@@ -76,10 +76,18 @@ class Memory:
         # Spec 006: sends each fact consolidation keeps to Waku Memory. app.py
         # sets it once the MCP servers have connected; None means no send.
         self.remember = None
+        self.domain = None
         if settings.contract_review:
             from waku.memory.contractguard import seed_clause_knowledge
 
             seed_clause_knowledge(self.facts)
+            if settings.contract_memory_upgrade:
+                from waku.memory.contractguard import CLAUSES
+                from waku.memory.contractguard_context import review_context, scope_for
+                from waku.memory.contractguard_store import DomainMemory
+
+                self.domain = DomainMemory(conn, scope_for(settings.home))
+                self.domain.seed(CLAUSES, review_context(scope=self.domain.scope))
 
     @staticmethod
     def _make_fact_store(conn, settings):
@@ -137,11 +145,19 @@ class Memory:
         facts, verdicts = slot_gate.select(message, facts)
         if notify and verdicts:
             notify("slot", {"verdicts": verdicts})
-        found = facts + self.episodes.search(query, top_k=3)
+        from waku.memory.contractguard import decode_review
+
+        episodes = []
+        for text in self.episodes.search(query, top_k=3):
+            record = decode_review(text.partition(') ')[2])
+            if record is None or record['schema'] not in ('contractguard_review_v3', 'contractguard_correction_v1'):
+                episodes.append(text)
+        found = facts + episodes
         return "\n".join(found)
 
     def review_context(self, message: str, *, clause_type: str | None = None,
-                       exclude_contract_id: str | None = None, notify=None) -> dict:
+                       exclude_contract_id: str | None = None, notify=None,
+                       review_profile: dict | None = None) -> dict:
         """Separate domain stores for one review step; exclusion happens before top-k."""
         from waku.memory.contractguard import CLAUSE_NAMES, clause_facts, review_history
 
@@ -160,6 +176,19 @@ class Memory:
                             "reason": decision.reason, "semantic": decision.semantic,
                             "episodic": decision.episodic, "clause_type": selected_clause})
         facts, episodes = [], []
+        if self.domain is not None:
+            from waku.memory.contractguard_context import review_context, validate_context
+
+            profile = validate_context(review_profile) if review_profile is not None else review_context(scope=self.domain.scope)
+            context, diagnostics = self.domain.select(
+                profile, clause_type=selected_clause, query=decision.query,
+                current_source=exclude_contract_id, semantic=decision.semantic, episodic=decision.episodic,
+                top_k=self.settings.retrieval_top_k,
+                latest=exclude_contract_id is None and 'latest' in message.casefold())
+            if notify:
+                notify('retrieval', {'facts': len(context['semantic']), 'episodes': len(context['episodic']),
+                                     **diagnostics})
+            return context
         if decision.semantic:
             facts = clause_facts(self.facts, decision.query, selected_clause,
                                  self.settings.retrieval_top_k)
@@ -187,16 +216,38 @@ class Memory:
 
     def complete_review(self, record: dict, source_text: str, *, candidates: list | None = None,
                         recalled: str = "", notify=None) -> list[dict]:
-        """Explicit grounded review completion after validated extraction and risk assessment.
+        """Persist grounded findings backed by a saved human approval.
 
-        Persist history immediately, then optionally learn short lexical cues.
-        An empty candidate list skips the model; None requests model proposals.
+        Ordinary writes require v2 provenance and candidates=[] (no model call).
+        Isolated benchmark predictions retain their explicit evaluation path.
         """
-        from waku.memory.contractguard import store_review
+        from waku.memory.contractguard import store_review, validate_review
 
         if not self.settings.contract_review:
             raise ValueError("completed reviews require WAKU_CONTRACT_REVIEW=1")
+        validate_review(record, source_text)
+        if record['origin'] == 'review':
+            from waku.tools.human_review import validate_approved_record
+
+            validate_approved_record(self.settings.home, record, source_text)
+            if candidates != []:
+                raise ValueError('human approval stores episodes without pattern learning')
+        if record['schema'] == 'contractguard_correction_v1':
+            if self.domain is None:
+                raise ValueError('correction memory requires the upgraded policy')
+            from waku.memory.contractguard_context import applicability
+
+            self.domain.put('correction', record['clause_type'], record, applicability(record['context']),
+                            source_id=record['contract_id'], approved_by=record['decision_id'])
+            return []
+        if record['schema'] == 'contractguard_review_v3' and self.domain is None:
+            raise ValueError('scoped memory requires the upgraded policy')
         validated, added = store_review(self.episodes, record, source_text)
+        if record['schema'] == 'contractguard_review_v3':
+            from waku.memory.contractguard_context import applicability
+
+            self.domain.put('review', record['clause_type'], record, applicability(record['context']),
+                            source_id=record['contract_id'], approved_by=record['decision_id'])
         if notify and added:
             notify("review_episode", {"contract_id": validated['contract_id'],
                                       "clause_type": validated['clause_type']})
@@ -301,6 +352,12 @@ class Memory:
         lines += [f"- **{f['subject']}** — {f['content']}" for f in facts] or ["_none yet_"]
         lines += ["", f"## Episodes — episodic memory ({len(eps)})", ""]
         lines += [f"- **{e['happened_at']}** — {e['summary']}" for e in eps] or ["_none yet_"]
+        if self.domain is not None:
+            import json
+
+            lines += ['', '## ContractGuard domain memory', '']
+            lines += [f"- **{r['kind']} · {r['state']} · {r['id']}** — "
+                      + json.dumps(r, ensure_ascii=False) for r in self.domain.list()]
         (self.settings.home / "MEMORY.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
         self.export_fact_files()
 

@@ -104,14 +104,13 @@ retrieval excludes ordinary facts and chat episodes. Exact clause history
 decodes review summaries and compares timezone-aware timestamps across all
 episodes rather than relying on an FTS top-k result.
 
-`Memory.complete_review()` validates evidence against source offsets and stores
-a versioned summary in the existing `episodes` table. It then runs optional
-pattern consolidation immediately. The domain writer accepts only short,
-grounded, novel lexical cues; benchmark predictions cannot create semantic
-facts. Review mode skips generic chat-log consolidation because a chat reply
-does not establish a completed review. These domain paths initially require
-SQLite stores. [ContractGuard foundation](contractguard/foundation.md) describes
-the record contract and remaining limitations.
+`Memory.complete_review()` validates evidence against source offsets and verifies
+ordinary findings against a saved human approval. It stores v2 summaries with a
+decision reference and approval timestamp in the existing `episodes` table.
+Retrieval also reads historical v1 summaries without inventing human provenance.
+Confirmation passes `candidates=[]` and runs no model or semantic learning.
+Review mode skips generic chat-log consolidation. These paths require SQLite.
+[ContractGuard foundation](contractguard/foundation.md) describes the records.
 
 The opt-in `review_contract` tool orchestrates ordinary parser, extractor, risk,
 comparison and report functions inside the existing registry and loop. Each
@@ -120,9 +119,13 @@ canonical procedure. History excludes the current document before top-k.
 Python aligns exact model-proposed quotations to source offsets and validates
 stage schemas before rendering a deterministic report. Structured extraction
 records remain available to evaluators independently of report formatting.
-Completed reviews call `Memory.complete_review()`; partial reviews make no
-review-memory writes. Local ready journals support persistence retries and
-completed artifacts support idempotent repeat calls.
+Ordinary reports enter `pending_review`; generation and cache reuse write no
+review memory. Reviews lets a person confirm, correct or reject the report.
+`tools/human_review.py` validates a closed submission against the saved source
+and records a separate decision journal before storing accepted positives.
+SQLite serializes decisions and episode insertion. Interrupted approvals resume
+without duplicate episodes; original artifacts remain intact. Partial reports
+cannot receive approval.
 [ContractGuard toolchain](contractguard/toolchain.md) describes the call path,
 artifact schema and limits.
 
@@ -138,9 +141,11 @@ Separate authored examples assess agreement with stated risk rubrics.
 The sequential `scripts/demo_review.py` reuses that predictor and deterministic
 report renderer in a fresh home. It saves native review artifacts and atomically
 replaces progress, memory snapshots and cumulative extraction metrics. The
-dashboard's read-only `/api/contractguard` route validates artifacts beneath its
+dashboard's `/api/contractguard` read route validates artifacts beneath its
 configured home, derives risk counts and projects saved metrics. `#reviews`
 renders that payload with existing UI primitives and the safe Markdown renderer.
+`POST /api/contractguard/review` saves ordinary human decisions without an agent
+or provider client. Benchmark reports expose no approval action.
 Provider setup allows this saved-data view while hiding chat without a usable
 provider. [ContractGuard demo](contractguard/demo.md) explains this data flow.
 

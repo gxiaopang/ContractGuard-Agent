@@ -381,6 +381,8 @@ def test_an_embed_session_reaches_the_chat(harness, method, target, payload):
     ("GET", "/embed/chatty", None),
     ("POST", "/api/settings", {"graph_workflows": True}),
     ("POST", "/api/memory", {"action": "delete", "id": 1}),
+    ("POST", "/api/contractguard/review", {"decision": "confirm"}),
+    ("POST", "/api/contractguard/memory", {"action": "approve"}),
     ("POST", "/api/query", {"sql": "SELECT 1"}),
     ("POST", "/api/chat", {"message": "hi"}),
     ("POST", "/api/graph/stream", {"workflow": "gather"}),

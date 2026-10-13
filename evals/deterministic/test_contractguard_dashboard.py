@@ -31,7 +31,7 @@ def test_empty_home_is_not_created_and_has_no_fabricated_metrics(tmp_path):
     home = tmp_path / 'missing'
     result = contractguard.collect(home)
     assert not home.exists()
-    assert result['progress']['reviewed'] == 0 and result['progress']['pending'] is None
+    assert result['progress']['reviewed'] == 0 and result['progress']['pending'] == 0
     assert result['evaluation'] is None and result['report'] is None and result['memory_growth'] == []
 
 
@@ -138,7 +138,7 @@ def test_native_reviews_survive_relative_artifact_paths_without_demo_metadata(de
     (home / 'contractguard/progress.json').unlink()
     data = contractguard.collect(Path('home'))
     assert len(data['reviews']) == 2 and data['errors'] == []
-    assert data['progress']['pending'] is None and data['evaluation'] is None
+    assert data['progress']['pending'] == 0 and data['evaluation'] is None
 
 
 @pytest.mark.parametrize('change', [lambda v: v.update(schema='bad'), lambda v: v.update(mode='gold-memory'),

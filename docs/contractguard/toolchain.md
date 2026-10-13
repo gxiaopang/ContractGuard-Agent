@@ -1,5 +1,17 @@
 # ContractGuard review toolchain
 
+`WAKU_CONTRACT_MEMORY_UPGRADE=1` adds an optional `review_profile` tool argument
+with project, contract type, represented party, role, jurisdiction, policy version
+and review date. The server supplies scope. The profile and current memory snapshot
+participate in cache identity. The tool saves source-bound working context with
+definitions, resolved or unresolved numbered references and stage completion.
+It does not claim that resolving a reference verifies its interpretation.
+
+The [memory upgrade](memory-eval-design.md) stores scoped approvals and explicit
+corrections after a saved human decision. Confirmation remains model-free.
+`POST /api/contractguard/memory` accepts human guidance proposals and revisioned
+approve, revoke and supersede decisions. It registers no model-facing tool.
+
 ContractGuard reviews plain text through one opt-in `review_contract` tool.
 `WAKU_CONTRACT_REVIEW=1` enables the tool and the Phase 1 local memory foundation.
 The five review stages remain ordinary Python functions in `waku/tools/`.
@@ -17,8 +29,8 @@ Waku's client, observer and loop without adding another graph engine.
 The workflow parses the original text, assembles per-clause memory and one
 procedure, extracts source spans, assesses detected clauses and optionally
 compares them against retrieved semantic guidance. Each stage uses the same
-configured main-model client. Gate and consolidation calls use the existing
-small-model setting. Calls use the provider adapter's supported Messages shape;
+configured main-model client. Gate calls use the existing small-model setting. Human confirmation makes no
+model call. Calls use the provider adapter's supported Messages shape;
 no separate DeepSeek client or new dependency is introduced.
 
 `Memory.review_context()` supplies separate semantic and episodic values.
@@ -57,18 +69,34 @@ structured extraction records, never prose headings or risk summaries.
 Successful and partial results are local artifacts in
 `<WAKU_HOME>/reviews/<review_id>/document.json`, `result.json` and `report.md`.
 The review id hashes source identity, name, ordered targets, comparison option,
-origin, main and small models, provider and prompt version. Names never become filesystem paths.
+origin, main and small models, provider, prompt version and result schema. Names never become filesystem paths.
 A complete cached result is revalidated against its source before reuse.
 Sequential repeated successful calls therefore spend no model calls and add no episodes.
 Partial reviews can be retried and do not teach memory.
 
-Before memory persistence, a ready artifact preserves validated findings and a
-single timestamp. A persistence failure leaves that artifact ready for retry.
-The retry reuses those findings and timestamp, so the Phase 1 episode writer
-can suppress duplicate summaries. A completed result is cached only after all
-positive findings have been handed to `Memory.complete_review()`. That writer
-stores episodes and separately considers reusable lexical patterns. A review
-with only missing clauses stores a report but no positive review episode.
+Ordinary generation saves `pending_review` without writing review memory.
+Open the dashboard's Reviews page, select the report and choose `Confirm and
+save`, `Correct and confirm`, or `Reject`. Each action records a reviewer label
+and optional note. Correction can change presence, quotations, risk, reasoning
+and recommendation. Repeated quotations require a zero-based occurrence.
+Partial reports must be regenerated before confirmation.
+
+`POST /api/contractguard/review` accepts a saved id, source revision, decision,
+reviewer and note; `correct` also requires compact findings. The GET projection
+supplies the revision and source text for the selected ordinary review. The
+server validates every correction before saving `human_review.json`. It renders
+accepted findings separately in `approved_report.md` and preserves the original
+three artifacts. Changed findings lose their generated comparison.
+
+The journal transitions from `approved` to `completed` after all accepted
+positive findings reach memory. Rejection preserves a `rejected` journal and
+writes no review memory. Competing decisions serialize through a local SQLite
+lock. Episode insertion uses a SQLite transaction to suppress duplicates.
+Identical submissions and interrupted writes reuse the saved decision and
+timestamp. Conflicting decisions require a new report revision. To request another review
+after a final decision, revise the source or use a new contract name. Confirmation
+passes `candidates=[]`, writes no semantic patterns and requires no model key.
+A confirmed report containing only missing clauses completes without an episode.
 
 The Python workflow accepts caller-controlled `benchmark_prediction` provenance;
 the model-facing tool always uses ordinary review provenance. Benchmark-origin
@@ -100,11 +128,13 @@ print(result["status"])
 print(result["artifacts"]["report"])
 ```
 
-Each result contains schema `contractguard_result_v1`, document and review ids,
+Each new result contains schema `contractguard_result_v2`, document and review ids,
 request metadata, a timezone-aware timestamp, status, findings, report and
 artifact paths. The returned `cached` flag describes reuse and is absent from
-saved JSON. Status is `completed` or `partial`; an internal `ready` journal
-means model stages finished and memory persistence still needs a retry.
+saved JSON. Ordinary generation status is `pending_review` or `partial`.
+Human state lives in the separate journal and dashboard projection. Existing
+v1 artifacts remain readable as legacy automatic reviews. Benchmark results
+retain `completed`, `partial` and internal `ready` persistence states.
 
 Each finding contains `clause_type`, `status`, `extraction`, `risk`, `comparison`,
 `memory_used` and `error`. Finding status is `found`, `not_found` or `error`.
@@ -115,9 +145,10 @@ predictions. Plain-text extraction has no gold-label or CUAD input field.
 
 Artifact validation rejects inconsistent cached documents, reports and findings.
 Writes replace individual files atomically; SQLite episode and fact writers
-remain separate operations. A ready journal supports retry after persistence
+remain separate operations. The human journal supports retry after persistence
 failure; it does not provide a transaction across every file and memory write.
-The cache does not coordinate simultaneous writers in different processes.
+Generation caching does not coordinate simultaneous model calls. Decision
+submissions and episode insertion do coordinate threads and processes.
 
 ## Scope and limits
 
@@ -134,5 +165,5 @@ Provider context and output limits can still cause failures for accepted input.
 The tool returns partial results when a model stage fails. An error is not a
 negative finding, and a failed risk call never receives a fabricated risk label.
 The workflow does not persist review knowledge until every requested stage has
-succeeded or been explicitly skipped. Evidence validation proves that a quote
+succeeded or been explicitly skipped and a person has confirmed the findings. Evidence validation proves that a quote
 exists in the source, not that a live model interpreted it correctly.

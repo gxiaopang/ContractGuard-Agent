@@ -11,7 +11,7 @@ import pytest
 from evals.helpers import ScriptedClient, response, text_block
 from waku.config import Settings
 from waku.db import connect
-from waku.memory import Memory
+from waku.memory import Memory, consolidation
 from waku.memory.contractguard import (
     CLAUSE_NAMES,
     CLAUSE_SKILLS,
@@ -21,6 +21,7 @@ from waku.memory.contractguard import (
     decode_review,
     review_history,
     seed_clause_knowledge,
+    store_review,
 )
 from waku.memory.retrieval_gate import review_decision
 from waku.runtime.session import Session
@@ -57,6 +58,19 @@ def client(*payloads):
     scripted = ScriptedClient([response([text_block(json.dumps(p))]) for p in payloads])
     scripted.messages.create = Mock(wraps=scripted.messages.create)
     return scripted
+
+
+def historical_completion(memory, record, source, *, candidates=None, recalled='', notify=None):
+    """Load a v1 historical fixture and test the standalone cue validator.
+
+    These legacy algorithm checks do not invoke the human-gated memory facade.
+    New ordinary writes are exercised by test_contractguard_human_review.py.
+    """
+    validated, added = store_review(memory.episodes, record, source)
+    if notify and added:
+        notify('review_episode', {'contract_id': validated['contract_id']})
+    return consolidation.consolidate_review(memory.client, memory.settings.small_model,
+                                            validated, memory.facts, candidates=candidates, recalled=recalled)
 
 
 @pytest.fixture
@@ -182,7 +196,7 @@ def test_skills_are_ten_valid_complete_runbooks(memory):
 ])
 def test_gate_selects_stores_independently(memory, message, decision, expected_facts,
                                          expected_episodes, monkeypatch):
-    memory.complete_review(review(), SOURCE, candidates=[])
+    historical_completion(memory, review(), SOURCE, candidates=[])
     memory.client = client(decision)
     fact_search = Mock(wraps=memory.facts.search_with_ids)
     episode_list = Mock(wraps=memory.episodes.list)
@@ -253,7 +267,7 @@ def test_domain_retrieval_excludes_personal_facts_and_episodes(memory):
     for _ in range(8):
         memory.facts.add('uncapped liability', 'Uncapped liability party next week.', source='user')
         memory.episodes.add('Discussed uncapped liability at a birthday party.', '2099-01-01')
-    memory.complete_review(review(), SOURCE, candidates=[])
+    historical_completion(memory, review(), SOURCE, candidates=[])
     memory.client = client(gate(semantic=True, episodic=True, query='uncapped liability',
                                 clause_type='Uncapped Liability'))
     result = memory.gated_retrieve('recall the uncapped liability review')
@@ -276,9 +290,9 @@ def test_general_domain_query_does_not_pull_unrelated_clauses(memory):
 
 def test_episode_roundtrip_is_grounded_idempotent_and_persists(memory):
     events = []
-    memory.complete_review(review(), SOURCE, candidates=[],
+    historical_completion(memory, review(), SOURCE, candidates=[],
                            notify=lambda k, ev: events.append((k, ev)))
-    memory.complete_review(copy.deepcopy(review()), SOURCE, candidates=[])
+    historical_completion(memory, copy.deepcopy(review()), SOURCE, candidates=[])
     rows = memory.episodes.list()
     assert len(rows) == 1
     assert decode_review(rows[0]['summary']) == review()
@@ -301,8 +315,8 @@ def test_latest_lookup_is_exact_beyond_default_top_k_and_compares_timezones(memo
     newer = review(timestamp='2026-10-05T07:00:00+00:00', contract_id='newer')
     older = review(timestamp='2026-10-05T14:30:00+08:00', contract_id='older')
     # Insert the older review last to make insertion order differ from recency.
-    memory.complete_review(newer, SOURCE, candidates=[])
-    memory.complete_review(older, SOURCE, candidates=[])
+    historical_completion(memory, newer, SOURCE, candidates=[])
+    historical_completion(memory, older, SOURCE, candidates=[])
     for _ in range(205):
         memory.episodes.add('An ordinary episode about uncapped liability.', '2099-01-01')
     latest = review_history(memory.episodes, clause_type='Uncapped Liability', limit=1)
@@ -343,18 +357,18 @@ def test_decode_ignores_unrelated_or_invalid_summaries(summary):
 
 def test_completion_keeps_novel_patterns_and_allows_same_clause_new_knowledge(memory):
     memory.client = client({'patterns': [candidate(), candidate()]})
-    kept = memory.complete_review(review(), SOURCE)
+    kept = historical_completion(memory, review(), SOURCE)
     assert len(kept) == 1
     assert kept[0]['subject'] == 'Uncapped Liability'
     assert 'without monetary ceiling' in kept[0]['content']
     assert 'finding_summary' not in kept[0]['content']
     assert SOURCE not in kept[0]['content']
     assert len(facts(memory)) == 11
-    assert memory.complete_review(review(), SOURCE, candidates=[candidate()]) == []
+    assert historical_completion(memory, review(), SOURCE, candidates=[candidate()]) == []
     other = candidate(kind='variant', pattern='accepts liability')
     # Extend quoted evidence so the second, distinct pattern is grounded.
     record = review(evidence=[{'text': SOURCE, 'start': 0, 'end': len(SOURCE)}])
-    assert len(memory.complete_review(record, SOURCE, candidates=[other])) == 1
+    assert len(historical_completion(memory, record, SOURCE, candidates=[other])) == 1
     assert len(facts(memory)) == 12
     call = memory.client.messages.create.call_args.kwargs
     assert call['model'] == 'offline-small'
@@ -371,14 +385,14 @@ def test_completion_keeps_novel_patterns_and_allows_same_clause_new_knowledge(me
     {**candidate(), 'gold_answer': True},
 ])
 def test_rejected_patterns_never_become_semantic_facts(memory, bad):
-    assert memory.complete_review(review(), SOURCE, candidates=[bad]) == []
+    assert historical_completion(memory, review(), SOURCE, candidates=[bad]) == []
     assert len(facts(memory)) == 10
     assert len(memory.episodes.list()) == 1
 
 
 def test_recalled_pattern_is_not_written_even_without_numbers(memory):
     recalled = 'Earlier review cue: WITHOUT MONETARY CEILING.'
-    assert memory.complete_review(review(), SOURCE, candidates=[candidate()], recalled=recalled) == []
+    assert historical_completion(memory, review(), SOURCE, candidates=[candidate()], recalled=recalled) == []
     assert len(facts(memory)) == 10
 
 
@@ -387,18 +401,18 @@ def test_seeded_variant_is_not_written_as_a_new_fact(memory):
     quote = 'unlimited liability'
     record = review(evidence=[{'text': quote, 'start': source.index(quote),
                               'end': source.index(quote) + len(quote)}])
-    assert memory.complete_review(record, source, candidates=[candidate(pattern=quote)]) == []
+    assert historical_completion(memory, record, source, candidates=[candidate(pattern=quote)]) == []
 
 
 def test_contract_identity_is_not_reusable_knowledge(memory):
     record = review(contract_id='monetary ceiling')
-    assert memory.complete_review(record, SOURCE, candidates=[candidate()]) == []
+    assert historical_completion(memory, record, SOURCE, candidates=[candidate()]) == []
 
 
 def test_benchmark_prediction_can_be_history_but_never_teaches_semantic_facts(memory):
     record = review(origin='benchmark_prediction')
-    assert memory.complete_review(record, SOURCE, candidates=[candidate()]) == []
-    assert memory.complete_review(record, SOURCE) == []
+    assert historical_completion(memory, record, SOURCE, candidates=[candidate()]) == []
+    assert historical_completion(memory, record, SOURCE) == []
     assert review_history(memory.episodes) == [record]
     assert len(facts(memory)) == 10
     memory.client.messages.create.assert_not_called()
@@ -408,17 +422,17 @@ def test_benchmark_prediction_can_be_history_but_never_teaches_semantic_facts(me
                                      {'patterns': None}, [], None])
 def test_malformed_model_consolidation_does_not_lose_review_episode(memory, payload):
     memory.client = client(payload)
-    assert memory.complete_review(review(), SOURCE) == []
+    assert historical_completion(memory, review(), SOURCE) == []
     assert review_history(memory.episodes) == [review()]
     assert len(facts(memory)) == 10
 
 
 def test_failed_pattern_model_retains_episode_and_can_retry(memory):
     memory.client.messages.create.side_effect = TimeoutError('offline failure')
-    assert memory.complete_review(review(), SOURCE) == []
+    assert historical_completion(memory, review(), SOURCE) == []
     assert len(memory.episodes.list()) == 1
     memory.client = client({'patterns': [candidate()]})
-    assert len(memory.complete_review(review(), SOURCE)) == 1
+    assert len(historical_completion(memory, review(), SOURCE)) == 1
     assert len(memory.episodes.list()) == 1
 
 

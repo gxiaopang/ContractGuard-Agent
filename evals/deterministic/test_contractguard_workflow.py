@@ -8,7 +8,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from evals.deterministic.test_contractguard_foundation import client, gate, review
+from evals.deterministic.test_contractguard_foundation import (
+    client,
+    gate,
+    historical_completion,
+    review,
+)
 from evals.deterministic.test_contractguard_tools import (
     CLAUSE,
     QUOTE,
@@ -20,6 +25,7 @@ from evals.deterministic.test_contractguard_tools import (
 from evals.helpers import make_waku, response, text_block, tool_block
 from waku.memory.contractguard import CLAUSES, decode_review, review_history
 from waku.tools.contract_review import make_tool, review_contract, write_artifact
+from waku.tools.human_review import digest, submit_review
 
 
 @pytest.fixture
@@ -46,6 +52,13 @@ def episodes(app):
 
 def run(app, **kwargs):
     return review_contract(app.memory, SOURCE, 'Agreement', [CLAUSE], **kwargs)
+
+
+def confirm(app, result):
+    saved = json.loads(Path(result['artifacts']['result']).read_text())
+    payload = {'review_id': result['review_id'], 'revision': digest(saved),
+               'decision': 'confirm', 'reviewer': 'Offline reviewer', 'note': ''}
+    return submit_review(app.settings, payload, memory=app.memory)
 
 
 def test_tool_is_opt_in_with_closed_schema_and_no_model_controlled_provenance(app, tmp_path):
@@ -82,11 +95,11 @@ def test_invalid_requests_fail_before_model_or_disk_work(app, kwargs):
     assert not (app.settings.home / 'reviews').exists()
 
 
-def test_review_writes_grounded_artifacts_episode_and_reuses_cache(app):
+def test_review_saves_pending_artifacts_without_memory_and_reuses_cache(app):
     set_model(app, gate(), proposal(), risk(), {'patterns': []})
     events = []
     result = run(app, notify=lambda kind, event: events.append((kind, event)))
-    assert result['status'] == 'completed' and result['cached'] is False
+    assert result['status'] == 'pending_review' and result['cached'] is False
     assert result['findings'][0]['extraction']['spans'][0]['text'] == QUOTE
     assert result['findings'][0]['risk']['risk_level'] == 'LOW'
     for path in result['artifacts'].values():
@@ -95,18 +108,16 @@ def test_review_writes_grounded_artifacts_episode_and_reuses_cache(app):
     saved = json.loads(Path(result['artifacts']['result']).read_text())
     assert saved['findings'] == result['findings'] and 'cached' not in saved
     assert Path(result['artifacts']['report']).read_text() == result['report']
-    record = episodes(app)[0]
-    assert record['contract_id'] == result['document_id'] and record['evidence'] == result['findings'][0]['extraction']['spans']
-    assert record['origin'] == 'review' and record['timestamp'] == result['timestamp']
+    assert episodes(app) == [] and len(app.memory.facts.list(limit=-1)) == 10
     assert [event['kind'] for kind, event in events if kind == 'llm'] == [
-        'gate', 'clause_extraction', 'risk_scoring', 'consolidation']
+        'gate', 'clause_extraction', 'risk_scoring']
     cached = run(app)
     assert cached == {**result, 'cached': True}
-    assert len(episodes(app)) == 1 and app.client.messages.create.call_count == 4
+    assert episodes(app) == [] and app.client.messages.create.call_count == 3
 
 
 def test_registry_tool_runs_through_loop_and_serializes_results_back_to_model(app):
-    replies = [gate(), None, gate(), proposal(), risk(), {'patterns': []}, None]
+    replies = [gate(), None, gate(), proposal(), risk(), None]
     scripted = client(*replies)
     scripted._script[1] = response([tool_block('review_contract', {
         'text': SOURCE, 'contract_name': 'Agreement', 'clause_types': [CLAUSE]}, 'review-1')], 'tool_use')
@@ -115,15 +126,15 @@ def test_registry_tool_runs_through_loop_and_serializes_results_back_to_model(ap
     result = app.respond('Review this agreement for Governing Law: ' + SOURCE)
     assert [call['tool'] for call in result.tool_calls] == ['review_contract']
     payload = json.loads(result.tool_calls[0]['output'])
-    assert payload['status'] == 'completed' and Path(payload['artifacts']['report']).exists()
+    assert payload['status'] == 'pending_review' and Path(payload['artifacts']['report']).exists()
     messages = scripted.messages.create.call_args_list[-1].kwargs['messages']
     observed = [block for msg in messages if isinstance(msg['content'], list)
                 for block in msg['content'] if isinstance(block, dict) and block.get('type') == 'tool_result']
     assert observed[-1]['tool_use_id'] == 'review-1'
     assert json.loads(observed[-1]['content'])['findings'] == payload['findings']
-    assert len(episodes(app)) == 1
+    assert episodes(app) == []
     usage = [json.loads(line) for line in (app.settings.home / 'usage.jsonl').read_text().splitlines()]
-    assert {'clause_extraction', 'risk_scoring', 'consolidation'} <= {row['kind'] for row in usage}
+    assert {'clause_extraction', 'risk_scoring'} <= {row['kind'] for row in usage}
     assert all(row['turn_id'] == usage[0]['turn_id'] for row in usage)
 
 
@@ -146,13 +157,13 @@ def test_comparison_can_be_disabled_even_when_guidance_is_retrieved(app):
     result = run(app, compare_guidance=False)
     assert result['findings'][0]['comparison'] is None
     assert 'Comparison skipped' not in result['report']
-    assert app.client.messages.create.call_count == 4
+    assert app.client.messages.create.call_count == 3
 
 
 def test_negative_review_is_complete_but_does_not_invent_a_risk_or_episode(app):
     set_model(app, gate(), proposal(found=False, spans=[]))
     result = run(app)
-    assert result['status'] == 'completed'
+    assert result['status'] == 'pending_review'
     item = result['findings'][0]
     assert item['status'] == 'not_found' and item['risk'] is None
     assert episodes(app) == [] and app.client.messages.create.call_count == 2
@@ -195,12 +206,13 @@ def test_partial_artifact_retries_model_stages_then_becomes_cached(app):
     assert first['status'] == 'partial'
     set_model(app, gate(), proposal(), risk(), {'patterns': []})
     second = run(app)
-    assert second['review_id'] == first['review_id'] and second['status'] == 'completed'
-    assert len(episodes(app)) == 1 and run(app)['cached'] is True
+    assert second['review_id'] == first['review_id'] and second['status'] == 'pending_review'
+    assert episodes(app) == [] and run(app)['cached'] is True
 
 
-def test_ready_journal_retries_persistence_with_fixed_timestamp_without_duplicate_episode(app):
-    set_model(app, gate(), proposal(), risk(), {'patterns': []}, {'patterns': []})
+def test_approval_journal_retries_persistence_without_duplicate_episode(app):
+    set_model(app, gate(), proposal(), risk())
+    result = run(app)
     original = app.memory.complete_review
 
     def fail_after_write(*args, **kwargs):
@@ -209,16 +221,14 @@ def test_ready_journal_retries_persistence_with_fixed_timestamp_without_duplicat
 
     app.memory.complete_review = fail_after_write
     with pytest.raises(OSError):
-        run(app)
-    journal = next((app.settings.home / 'reviews').glob('*/result.json'))
-    ready = json.loads(journal.read_text())
-    assert ready['status'] == 'ready' and len(episodes(app)) == 1
+        confirm(app, result)
+    path = Path(result['artifacts']['result']).parent / 'human_review.json'
+    approved = json.loads(path.read_text())
+    assert approved['status'] == 'approved' and len(episodes(app)) == 1
     app.memory.complete_review = original
-    result = run(app)
-    assert result['status'] == 'completed' and result['timestamp'] == ready['timestamp']
-    assert len(episodes(app)) == 1
-    # Retry called only consolidation, never extraction or risk.
-    assert app.client.messages.create.call_count == 5
+    completed = confirm(app, result)
+    assert completed['status'] == 'completed' and completed['timestamp'] == approved['timestamp']
+    assert len(episodes(app)) == 1 and app.client.messages.create.call_count == 3
 
 
 @pytest.mark.parametrize('artifact', ['result', 'document', 'report'])
@@ -234,7 +244,7 @@ def test_cache_refuses_inconsistent_or_ungrounded_artifacts(app, artifact):
         path.write_text('{}' if artifact == 'document' else 'Invented report')
     with pytest.raises(ValueError):
         run(app)
-    assert app.client.messages.create.call_count == 4 and len(episodes(app)) == 1
+    assert app.client.messages.create.call_count == 3 and episodes(app) == []
 
 
 def test_benchmark_provenance_stores_prediction_but_never_promotes_facts(app):
@@ -247,10 +257,10 @@ def test_benchmark_provenance_stores_prediction_but_never_promotes_facts(app):
 
 def test_history_excludes_current_document_before_limit_and_preserves_category(app):
     for i in range(5):
-        app.memory.complete_review(review(contract_id='current', timestamp=f'2026-10-05T1{i}:00:00+00:00'),
+        historical_completion(app.memory, review(contract_id='current', timestamp=f'2026-10-05T1{i}:00:00+00:00'),
                                    'Supplier accepts liability without monetary ceiling for any covered loss. '
                                    'Customer may rely on these protections.', candidates=[])
-    app.memory.complete_review(review(contract_id='old', timestamp='2026-10-04T10:00:00+00:00'),
+    historical_completion(app.memory, review(contract_id='old', timestamp='2026-10-04T10:00:00+00:00'),
                                'Supplier accepts liability without monetary ceiling for any covered loss. '
                                'Customer may rely on these protections.', candidates=[])
     history = review_history(app.memory.episodes, clause_type='Uncapped Liability', exclude_contract_id='current')
@@ -263,6 +273,7 @@ def test_history_excludes_current_document_before_limit_and_preserves_category(a
 def test_workflow_excludes_its_document_from_historical_examples(app):
     set_model(app, gate(), proposal(), risk(), {'patterns': []})
     first = run(app)
+    confirm(app, first)
     set_model(app, gate(episodic=True, query=CLAUSE, clause_type=CLAUSE), proposal(), risk(), {'patterns': []})
     changed_request = review_contract(app.memory, SOURCE, 'Renamed contract', [CLAUSE])
     assert changed_request['review_id'] != first['review_id']
@@ -275,7 +286,7 @@ def test_all_ten_tasks_receive_their_procedure_without_conversational_skill_cap(
         script.extend([gate(), proposal(clause_type=clause.name, found=False, spans=[])])
     set_model(app, *script)
     result = review_contract(app.memory, SOURCE)
-    assert result['status'] == 'completed' and len(result['findings']) == 10
+    assert result['status'] == 'pending_review' and len(result['findings']) == 10
     calls = app.client.messages.create.call_args_list
     goals = {
         'Termination for Convenience': 'Determine who can terminate without proving breach.',
@@ -296,13 +307,13 @@ def test_all_ten_tasks_receive_their_procedure_without_conversational_skill_cap(
     assert episodes(app) == []
 
 
-def test_consolidation_learns_only_source_backed_lexical_patterns(app):
+def test_generation_does_not_ask_for_or_learn_patterns(app):
     set_model(app, gate(), proposal(), risk(), {'patterns': [
         {'kind': 'variant', 'pattern': 'is governed by', 'evidence_index': 0},
         {'kind': 'variant', 'pattern': 'invented phrase', 'evidence_index': 0}]})
     run(app)
     learned = [row for row in app.memory.facts.list(limit=-1) if row['source'] == 'contractguard_consolidation']
-    assert len(learned) == 1 and 'is governed by' in learned[0]['content']
+    assert learned == [] and app.client.messages.create.call_count == 3
 
 
 @pytest.mark.parametrize('operation', ['fsync', 'replace'])

@@ -11,9 +11,10 @@ from pathlib import Path
 from waku.memory import bundled_skill_dirs
 from waku.memory.contractguard import CLAUSES, DOMAIN_SOURCES, decode_review
 from waku.memory.procedural.loader import SkillLoader
-from waku.tools.contract_parser import parse_contract
-from waku.tools.contract_review import validate_result
+from waku.tools.contract_review import RESULT_SCHEMA
 from waku.tools.contract_schema import load_json
+from waku.tools.human_review import digest, load_review, read_decision
+from waku.tools.report_generator import generate_report
 
 IDENTITY = re.compile(r'[0-9a-f]{64}')
 MAX_REVIEWS = 200
@@ -116,35 +117,44 @@ def memory_counts(home: Path) -> dict:
 
 
 def collect(home: Path, review_id: str | None = None) -> dict:
-    """Return projections, never source documents, raw memory, keys or caller paths."""
+    """Project saved reports and selected review evidence from this home only."""
     home = Path(home).resolve()
     if review_id is not None and (not isinstance(review_id, str) or IDENTITY.fullmatch(review_id) is None):
         return {'error': 'Select a saved review id.'}
-    errors, reviews, findings_by_id = [], [], {}
+    errors, reviews, findings_by_id, human_by_id = [], [], {}, {}
     root = home / 'reviews'
     candidates = sorted(root.iterdir()) if root.is_dir() and home in root.resolve().parents else []
     folders = [p for p in candidates if IDENTITY.fullmatch(p.name) and p.is_dir()]
     truncated = len(folders) > MAX_REVIEWS
     for folder in folders[:MAX_REVIEWS]:
         try:
-            document = load_json(read_text(home, folder / 'document.json'))
-            result = load_json(read_text(home, folder / 'result.json'))
+            document, result, folder = load_review(home, folder.name)
             request = result['request']
-            if document != parse_contract(document['text'], request['contract_name']):
-                raise ValueError('document does not preserve its source structure')
-            artifacts = {key: str(folder / filename) for key, filename in
-                         (('document', 'document.json'), ('result', 'result.json'), ('report', 'report.md'))}
-            declared = result['artifacts']
-            if (not isinstance(declared, dict) or set(declared) != set(artifacts)
-                    or any(not isinstance(declared[key], str)
-                           or Path(declared[key]).resolve() != Path(path).resolve()
-                           for key, path in artifacts.items())):
-                raise ValueError('review artifact paths differ from its directory')
-            validate_result(result, document, request, folder.name, declared)
-            if read_text(home, folder / 'report.md') != result['report']:
-                raise ValueError('report differs from validated findings')
+            journal = read_decision(home, result, document, folder)
+            status = journal['status'] if journal else result['status']
+            ordinary = result['schema'] == RESULT_SCHEMA and request['origin'] == 'review'
+            if ordinary:
+                human_by_id[folder.name] = {
+                    'review_id': folder.name, 'revision': digest(result), 'status': status,
+                    'source_text': document['text'], 'findings': result['findings'],
+                    'submission': journal['submission'] if journal else None,
+                    'decision': journal['submission']['decision'] if journal else None,
+                    'reviewer': journal['submission']['reviewer'] if journal else None,
+                    'note': journal['submission']['note'] if journal else None,
+                    'timestamp': journal['timestamp'] if journal else None,
+                    'accepted_findings': journal['accepted_findings'] if journal else None,
+                    'review_context': request.get('review_context'),
+                    'working_context': result.get('working_context'),
+                    'approved_report': generate_report(document['text'], request['contract_name'],
+                        journal['accepted_findings'], request['clause_types'],
+                        compare_guidance=request['compare_guidance'])
+                        if journal and status != 'rejected' else None,
+                }
+            scripted = journal is not None and journal['submission']['reviewer'] == 'scripted-evaluation-feedback'
+            label = ('scripted evaluation decision' if scripted else 'human review' if ordinary else 'benchmark prediction'
+                     if request['origin'] == 'benchmark_prediction' else 'legacy automatic review')
             reviews.append({'review_id': folder.name, 'contract_id': result['document_id'],
-                            'name': request['contract_name'], 'status': result['status'],
+                            'name': request['contract_name'], 'status': status, 'review_kind': label,
                             'timestamp': result['timestamp'], 'origin': request['origin']})
             findings_by_id[folder.name] = result
         except (OSError, ValueError, TypeError, KeyError, OverflowError):
@@ -173,13 +183,17 @@ def collect(home: Path, review_id: str | None = None) -> dict:
                     'current': next((r['name'] for r in rows if r['contract_id'] == state['current_contract_id']), None),
                     'status': state['status'], 'contracts': rows}
     else:
-        reviewed = sum(r['status'] in ('completed', 'partial') for r in reviews)
-        progress = {'total': len(reviews), 'reviewed': reviewed, 'pending': None, 'current': None,
+        reviewed = sum(r['status'] == 'completed' for r in reviews)
+        progress = {'total': len(reviews), 'reviewed': reviewed, 'pending': sum(r['status'] in ('pending_review', 'approved') for r in reviews), 'current': None,
                     'failed': sum(r['status'] == 'partial' for r in reviews),
                     'status': 'saved-reviews', 'contracts': reviews}
     matrix = {c.name: dict.fromkeys(('HIGH', 'MEDIUM', 'LOW', 'NOT_FOUND', 'ERROR'), 0) for c in CLAUSES}
-    for result in findings_by_id.values():
-        for finding in result['findings']:
+    for saved_id, result in findings_by_id.items():
+        human = human_by_id.get(saved_id)
+        if human and human['status'] == 'rejected':
+            continue
+        accepted = human['accepted_findings'] if human else None
+        for finding in accepted if accepted is not None else result['findings']:
             label = ('ERROR' if finding['status'] == 'error' else 'NOT_FOUND'
                      if finding['status'] == 'not_found' else finding['risk']['risk_level'])
             matrix[finding['clause_type']][label] += 1
@@ -196,10 +210,51 @@ def collect(home: Path, review_id: str | None = None) -> dict:
         errors.append('Local memory counts are unavailable.')
     selected = review_id or (reviews[0]['review_id'] if reviews else None)
     chosen = findings_by_id.get(selected)
+    try:
+        managed = domain_snapshot(home)
+    except (sqlite3.Error, OSError, ValueError, KeyError, TypeError):
+        managed = []
+        errors.append('Scoped memory provenance is unavailable.')
     return {'schema': 'contractguard_dashboard_v1', 'reviews': reviews, 'progress': progress,
             'risk_matrix': matrix, 'memory_growth': state['memory_growth'] if state else [],
             'memory_counts': counts, 'evaluation': evaluation, 'execution_kind': state['execution_kind'] if state else None,
             'mode': state['mode'] if state else None, 'selected_review_id': selected,
             'report': chosen['report'] if chosen else None,
+            'human_review': human_by_id.get(selected),
+            'domain_memory': managed, 'quality_report': quality_snapshot(home),
             'errors': list(dict.fromkeys(errors)), 'truncated': truncated,
             'selection_missing': review_id is not None and chosen is None}
+
+
+def domain_snapshot(home):
+    """Read lifecycle state without initializing, seeding or calling a provider."""
+    path = home / 'state.db'
+    if not path.is_file() or path.is_symlink():
+        return []
+    from waku.memory.contractguard_context import scope_for
+    from waku.memory.contractguard_store import DomainMemory
+
+    with closing(sqlite3.connect(path.as_uri() + '?mode=ro', uri=True)) as conn:
+        conn.row_factory = sqlite3.Row
+        if not conn.execute("SELECT 1 FROM sqlite_master WHERE name='contractguard_memory'").fetchone():
+            return []
+        rows = []
+        for row in conn.execute('SELECT * FROM contractguard_memory ORDER BY created_at DESC LIMIT 200'):
+            value = DomainMemory._decode(row)
+            if value['applicability']['scope'] != scope_for(home):
+                continue
+            rows.append(value)
+        return rows
+
+
+def quality_snapshot(home):
+    path = home / 'contractguard' / 'quality.json'
+    if not path.exists():
+        return None
+    try:
+        data = load_json(read_text(home, path))
+        if data['schema'] != 'contractguard_quality_report_v1' or data['quality']['status'] not in ('passed', 'failed', 'not_evaluated'):
+            return None
+        return data
+    except (OSError, ValueError, KeyError, TypeError):
+        return None

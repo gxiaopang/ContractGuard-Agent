@@ -220,6 +220,9 @@ class Settings:
     contract_review: bool = field(
         default_factory=lambda: os.getenv("WAKU_CONTRACT_REVIEW", "") in ("1", "true", "yes")
     )
+    contract_memory_upgrade: bool = field(
+        default_factory=lambda: os.getenv("WAKU_CONTRACT_MEMORY_UPGRADE", "") in ("1", "true", "yes")
+    )
     # Consolidate (distill chats into durable facts) only after N new exchanges.
     consolidate_every: int = field(default_factory=lambda: int(os.getenv("WAKU_CONSOLIDATE_EVERY", "6")))
     retrieval_top_k: int = field(default_factory=lambda: int(os.getenv("WAKU_RETRIEVAL_TOP_K", "4")))

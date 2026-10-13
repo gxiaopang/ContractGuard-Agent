@@ -26,6 +26,7 @@ CATEGORY_MAP = {
 class ReviewInput:
     contract_id: str
     text: str
+    context: dict | None = None
 
 
 @dataclass(frozen=True)

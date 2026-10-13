@@ -24,6 +24,19 @@ load_dotenv()  # the key check below must see .env, same as the app does
 REPO = Path(__file__).resolve().parents[2]
 
 
+def contractguard_quality(path: Path) -> dict:
+    """Recheck a stored experiment's coverage instead of trusting its verdict label."""
+    from evals.contractguard.quality import quality_verdict
+    from waku.tools.contract_schema import load_json
+
+    data = load_json(path.read_text(encoding='utf-8'))
+    if data.get('schema') != 'contractguard_quality_report_v1':
+        raise ValueError('Select a versioned ContractGuard quality report.')
+    return quality_verdict(data['metrics'], data.get('profile'), execution_kind=data['execution_kind'],
+                           calibrated=data.get('calibration') == 'human_calibrated',
+                           complete=data.get('execution_status') == 'completed')
+
+
 def run(suite: str) -> tuple[int, dict]:
     """Run a pytest suite; return (exit_code, {passed, failed}). Counts come
     from the -q summary line — zero extra deps; 0/0 on a miss is honest."""
@@ -60,6 +73,14 @@ def report(deterministic: str, judge: str, suites: dict | None = None) -> None:
 
 
 def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--contractguard-report', type=Path)
+    parser.add_argument('--strict-quality', action='store_true', help='require evaluated ContractGuard quality as well as engineering checks')
+    args = parser.parse_args()
+    if args.strict_quality and args.contractguard_report is None:
+        parser.error('--strict-quality requires --contractguard-report')
     suites = {}
     code, suites["deterministic"] = run("deterministic")
     if code:
@@ -85,7 +106,16 @@ def main() -> None:
         report("pass", "skipped", suites)
         print(f"\n(judge suite skipped: no API key for provider '{settings.provider}')")
 
-    print("\nGATE OPEN — safe to release.")
+    if args.contractguard_report is not None:
+        try:
+            verdict = contractguard_quality(args.contractguard_report)
+        except (ValueError, OSError, KeyError, TypeError):
+            verdict = {'status': 'not_evaluated', 'reasons': ['Quality report is missing or invalid.']}
+        print('\nContractGuard quality: ' + verdict['status'])
+        if args.strict_quality and verdict['status'] != 'passed':
+            print('GATE CLOSED — required ContractGuard quality has not passed.')
+            sys.exit(1)
+    print("\nENGINEERING GATE OPEN — required code checks passed.")
 
 
 if __name__ == "__main__":

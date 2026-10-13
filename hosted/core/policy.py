@@ -127,6 +127,8 @@ DECISIONS: dict[str, str] = {
     "/api/observability": PASS,
     # Read-only saved reviews and demo snapshots beneath this tenant's home.
     "/api/contractguard": PASS,
+    "/api/contractguard/review": PASS,  # Human decisions in the authenticated tenant dashboard.
+    "/api/contractguard/memory": PASS,  # Scoped lifecycle decisions in the tenant's own home.
     # spec 015: judges one of this tenant's own stored turns. Like /api/chat it
     # spends through the tenant's own provider, so on the free tier the
     # metering proxy charges it in credits; one call per click, 300 tokens out

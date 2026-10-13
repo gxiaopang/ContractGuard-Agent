@@ -44,6 +44,8 @@ into four groups.
 | [contractguard/evaluation.md](contractguard/evaluation.md) | local CUAD loading, frozen span matching, isolated memory ablations, risk rubrics and reproducible artifacts |
 | [contractguard/demo.md](contractguard/demo.md) | seeded offline/live demos, saved reports, read-only dashboard views and persisted progress |
 | [contractguard/architecture.md](contractguard/architecture.md) | implemented review and evaluation paths, three memory types and their code boundaries |
+| [contractguard/human-review-design.md](contractguard/human-review-design.md) | proposed human confirmation and correction before ordinary review-memory writes |
+| [contractguard/memory-eval-design.md](contractguard/memory-eval-design.md) | opt-in scoped memory, correction lifecycle, generated evaluation and phased acceptance criteria |
 | [contractguard/results.md](contractguard/results.md) | measured offline results, artifact provenance, overhead and limits on quality claims |
 | [contractguard/interview-notes.md](contractguard/interview-notes.md) | design choices, actual corrections, architectural trade-offs and verified resume bullets |
 

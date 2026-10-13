@@ -275,6 +275,8 @@ NETWORK_CALLERS = {
     ("main.js", "refresh"): "background",
     ("observe.js", "loadObservability"): "background",
     ("contractguard.js", "loadContractguard"): "background",
+    ("contractguard.js", "contractguardSave"): "user",
+    ("contractguard.js", "contractguardMemorySubmit"): "user",
     ("observe.js", "obsJudge"): "user",   # spec 015: the "Judge this turn" click
     ("main.js", "stopMic"): "user",
     ("memory.js", "saveFact"): "user",

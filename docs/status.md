@@ -1,12 +1,10 @@
 # Status
 
-**What is true right now.** Rewritten whole when it changes, never appended to
-— a status file that grows is a changelog, and git already is one.
+**What is true right now.** This file is rewritten when behavior changes.
 
-Read this before opening a PR or filing an issue: most of what is already
-known-broken is below, and half of it already has a fix in flight.
+Read this before opening a PR or filing an issue; known failures appear below.
 
-**Last updated:** 2026-10-06
+**Last updated:** 2026-10-13
 
 ---
 
@@ -26,7 +24,9 @@ integrations registry.
 `WAKU_CONTRACT_REVIEW=1` enables `review_contract`, ten clause procedures, gated
 SQLite memory, evidence-checked extraction, separate risk assessment and optional
 guidance comparison. The tool saves structured findings and a Markdown report,
-then persists completed positive findings and considers reusable lexical cues.
+then waits for human confirmation or correction in Reviews before storing
+approved positive findings. Rejection writes no review memory. Confirmation
+calls no model and learns no semantic patterns.
 [ContractGuard toolchain](contractguard/toolchain.md) explains usage, partial
 failures and cache behavior. Offline evals verify scripted results; live model
 quality remains unmeasured.
@@ -40,12 +40,19 @@ as unscored. Offline smoke runs exercise all three arms without API calls.
 leakage controls and artifacts. Live CUAD quality and memory improvement remain
 unmeasured.
 
+**ContractGuard's opt-in memory upgrade runs without manual evaluation labels.**
+`WAKU_CONTRACT_MEMORY_UPGRADE=1` enables scoped memory, corrections and lifecycle decisions.
+`scripts/run_eval.py --upgrade` generates cases for four isolated memory arms.
+Frozen and sequential runs need no manual labels. Live judges remain uncalibrated;
+risk and legal quality stay unverified. [Upgrade design](contractguard/memory-eval-design.md) explains limits.
+
 **ContractGuard shows saved reviews and demo progress in the dashboard.**
 `scripts/demo_review.py --contracts 5 --show-memory-growth --seed 42` reviews
 authored fixtures offline in a fresh home and prints its dashboard command.
 The Reviews page displays validated reports, progress, risk counts, memory
-snapshots and generated extraction metrics. Its tenant-local route starts no
-model calls. [ContractGuard demo](contractguard/demo.md) explains the artifact
+snapshots and generated extraction metrics. Ordinary reports support confirmation,
+correction and rejection. Benchmark artifacts retain their evaluation-only
+memory policy. Dashboard review actions start no model calls. [ContractGuard demo](contractguard/demo.md) explains the artifact
 flow, live-run option and limits. Scripted scores establish no live quality or
 memory advantage. [Measured results](contractguard/results.md) records offline
 scores and overhead. [Interview notes](contractguard/interview-notes.md) provide
@@ -60,7 +67,7 @@ both, so the repo's "Latest" release always matches `pip install waku-agent`.
 
 ## Known broken
 
-Nothing here is a surprise. If you hit one of these, the issue exists.
+These failures already have tracked issues.
 
 | What | Where | Fix in flight |
 |---|---|---|

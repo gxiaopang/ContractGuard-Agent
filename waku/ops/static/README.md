@@ -32,11 +32,15 @@ runs the bootstrap and must load last**.
 | `graph.js`   | graph workflows: data-driven topology chart (`graphSVG` from `d.graph.workflows`), the Overview panel (`graphPanel`), and `animateGraphStage` for `graph_*`/`route` events |
 | `views.js`   | subtab/db helpers, SQL console, Memory/Tools sub-views, the `VIEWS` router object |
 | `observe.js` | the Observability page (spec 012): four cards that match and open its four tabs, Turns (a waterfall per turn: a story line, failures, then one grid on one time axis with a closed row per loop; `obsTurnBadges` is the slot for a turn's badges), Tools (by source; treg endpoints first, then the actions around them), Memory, Spend; and the Evals page (`#evals`). Both read `GET /api/observability` through `loadObservability`; `#ops` still opens Observability and `#observability/evals` lands on Evals |
-| `contractguard.js` | the read-only Reviews page: saved queue progress, risk counts, memory progression, generated extraction metrics and safe Markdown reports from `GET /api/contractguard`; it remains readable without a provider while chat stays hidden |
+| `contractguard.js` | the Reviews page: saved queue progress, risk counts, memory progression, generated extraction metrics and safe Markdown reports from `GET /api/contractguard`, plus ordinary human decisions through `POST /api/contractguard/review`; dialog drafts survive polling and confirmation makes no model call; it remains usable without a provider while chat stays hidden |
 | `compare.js` | the Model arena (`Arena` tab; internals keep the `compare` name) — race one message through several models at once |
 | `dock.js`    | chat sessions/history (`loadThreadInto`), model chip, stats toggle |
 | `main.js`    | `render`/`refresh` loop, resizers, voice, and the bootstrap (**loads last**) |
 | `embed.js`   | `embed.html`'s bootstrap instead of `main.js`: the header's state from `/api/session?action=state`, the `postMessage` to the page that framed it, and the three messages it accepts back (`new-chat`; `theme`, applied but never stored; `ask`, a prompt id mapped to the frame's own fixed sentence, never free text) (**loads last there**) |
+
+The Reviews page also displays scoped memory provenance and lifecycle state,
+source-bound working context and upgrade quality reports. Its guidance and
+lifecycle dialogs call `POST /api/contractguard/memory` without a model request.
 
 Data flows one way: `refresh()` (main.js) fetches `/api/data` into the global
 `D`, then `render()` writes `VIEWS[hash](D)` into `#view`. Every mutation

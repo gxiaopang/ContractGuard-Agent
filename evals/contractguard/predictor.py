@@ -105,12 +105,16 @@ class CountingClient:
 
 
 class Predictor:
-    def __init__(self, settings, client, mode: str, *, workers: int = 1):
+    def __init__(self, settings, client, mode: str, *, workers: int = 1,
+                 accumulate: bool = True, corrections: bool = True):
         if type(workers) is not int or not 1 <= workers <= 32:
             raise ValueError('clause workers must be an integer from 1 to 32')
         self.workers = workers
         self.policy = memory_policy(mode)
         self.mode = mode
+        self.policy['episodic_writes'] = self.policy['episodic_writes'] and accumulate
+        self.corrections = corrections
+        self.retrieval_events = []
         self.settings = replace(settings, contract_review=self.policy['semantic'],
                                 semantic_store='sqlite', episodic_store='sqlite', otel_endpoint='')
         # The runner owns a new home. A predictor cannot attach to someone's memory.
@@ -144,6 +148,14 @@ class Predictor:
         semantic = decision.semantic and decision.clause_type in (None, target)
         episodic = (self.policy['episodic'] and decision.episodic
                     and decision.clause_type in (None, target))
+        if self.memory.domain is not None:
+            context, diagnostics = self.memory.domain.select(
+                self.profile(source), clause_type=target, query=decision.query,
+                current_source=source.contract_id, semantic=semantic, episodic=episodic,
+                corrections=self.corrections, top_k=self.settings.retrieval_top_k)
+            self.retrieval_events.append({'contract_id': source.contract_id, 'clause_type': target, **diagnostics})
+            self.telemetry.event('retrieval', {'facts': len(context['semantic']), 'episodes': len(context['episodic'])})
+            return context
         facts = clause_facts(self.memory.facts, decision.query, target,
                              self.settings.retrieval_top_k) if semantic else []
         episodes = review_history(self.memory.episodes, clause_type=target,
@@ -160,17 +172,23 @@ class Predictor:
             if retrieval_error is not None:
                 raise retrieval_error
             item['memory_used'] = context if context is not None else self.context(source, target)
+            procedure = self.procedures[target]
+            if self.settings.contract_memory_upgrade:
+                from waku.memory.contractguard_context import procedure_context, working_context
+
+                procedure = procedure_context(procedure, self.profile(source),
+                                              working_context(parse_contract(source.text), [target]))
             stage = 'extraction'
             item['extraction'] = extract_clause(
                 metered(self.client, 'clause_extraction', self.telemetry.event), self.settings.model,
-                source.text, target, context=item['memory_used'], procedure=self.procedures[target],
+                source.text, target, context=item['memory_used'], procedure=procedure,
                 sections=sections)
             if item['extraction']['found']:
                 stage = 'risk'
                 item['risk'] = score_risk(
                     metered(self.client, 'risk_scoring', self.telemetry.event), self.settings.model,
                     item['extraction'], source.text, context=item['memory_used'],
-                    procedure=self.procedures[target])
+                    procedure=procedure)
                 item['status'] = 'found'
             else:
                 item['status'] = 'not_found'
@@ -178,6 +196,11 @@ class Predictor:
             item['error'] = {'stage': stage, 'message':
                              f'Stage failed to produce a validated result ({type(exc).__name__}).'}
         return item
+
+    def profile(self, source):
+        from waku.memory.contractguard_context import review_context, scope_for
+
+        return review_context(source.context, scope=scope_for(self.settings.home))
 
     def parallel_findings(self, source, targets, sections):
         # Only network stages use threads. SQLite reads and writes stay on the
@@ -205,6 +228,8 @@ class Predictor:
         if source.contract_id in self.seen:
             raise ValueError('a benchmark predictor cannot review the same document twice')
         self.seen.add(source.contract_id)
+        if source.context is not None:
+            self.profile(source)
         targets = list(target_names(targets))
         before, started = self.telemetry.snapshot(), time.perf_counter()
         document = parse_contract(source.text, 'Contract ' + source.contract_id[:12])

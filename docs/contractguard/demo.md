@@ -45,7 +45,7 @@ WAKU_HOME=/absolute/path/to/artifacts/demo/RUN_ID/home python -m waku dashboard
 ```
 
 Open `http://localhost:7777/#reviews`. Waku also links saved reviews from its
-provider setup screen. This read-only page requires no model key and hides chat
+provider setup screen. This page requires no model key and hides chat
 when the configured provider cannot serve a turn.
 
 `--mode baseline`, `--mode semantic-only` and `--mode full-memory` select the
@@ -102,9 +102,11 @@ between those license boundaries and no copied design asset changes.
 
 Review Progress derives completed, pending and incomplete counts from queue
 snapshots and validated artifacts. Native reviews outside a demo have no saved
-queue, so the view shows unknown pending work. A ready persistence journal does
-not count as a completed review. Risk Matrix computes HIGH, MEDIUM, LOW,
-NOT FOUND and ERROR counts from validated findings. Unreviewed categories have
+demo queue. Their pending count covers reports awaiting human review or
+completion of an approved write. Only stored ordinary reviews count as completed.
+Risk Matrix computes HIGH, MEDIUM, LOW,
+NOT FOUND and ERROR counts from generated pending findings and accepted approved
+findings. Rejected reports are excluded. Unreviewed categories have
 zero counts; failed stages never count as missing clauses.
 
 Memory Growth reads persisted after-review snapshots. Current semantic and review
@@ -113,6 +115,32 @@ from bundled clause skills. Evaluation Summary projects generated micro/macro
 precision, recall, F1, model calls, tokens, latency, mode and available cost.
 The view labels scripted runs explicitly and makes no CUAD risk-quality claim.
 Review Report uses the existing safe Markdown renderer and shared typography.
+
+## Human review for ordinary reports
+
+The demo creates benchmark predictions under its isolated evaluation policy.
+Reviews labels them as benchmark predictions and offers no confirmation action.
+Existing v1 ordinary reports appear as legacy automatic reviews.
+
+New ordinary reports from `review_contract` enter `pending_review` and write no
+review memory. With `WAKU_CONTRACT_REVIEW=1`, select one in Reviews and choose
+`Confirm and save`, `Correct and confirm`, or `Reject`. Enter a reviewer label
+and optional note. Correction allows edits to presence, exact source quotations,
+risk, reasoning and recommendations. Repeated quotations require a zero-based
+occurrence. The source contract is available beside the generated report.
+
+The server validates the saved source revision and corrections before recording
+a decision. It preserves generated artifacts and renders a separate approved
+report. Confirmation stores only accepted positives without a model call or
+semantic learning. Rejection stores no review memory. Drafts survive background
+refresh; errors retain edits. `Retry saving` completes an interrupted approved
+write with its original decision. The reviewer label documents a local label,
+not a verified identity. Hosted access uses existing tenant authentication.
+
+The JSON-only, bounded `POST /api/contractguard/review` route rejects cross-origin
+browser submissions and reads artifacts only from the configured home. Hosted
+policy permits authenticated dashboard decisions; embedded chat sessions cannot
+submit them. The policy remains Elastic License 2.0 and Waku remains MIT.
 
 ## Learning checkpoint
 
